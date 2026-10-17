@@ -1,7 +1,6 @@
 {
   "version": "0.1.0",
-  "source_commit": "0af2630571cf9ead679cdb47d685b9c29d9b930b",
-  "source_tag": "v0.1.0-baseline",
-  "prepared_at": "2026-10-15",
-  "description": "Public website files only. Mainland network reachability is checked separately."
+  "source_commit": "9075727eef0c199fdeccbae3fc9e84934a2d2acf",
+  "prepared_at": "2026-10-17T11:55:50.542Z",
+  "description": "Public website files only. Network reachability is checked separately."
 }
