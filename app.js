@@ -93,7 +93,7 @@
   }
   function openWebPreview(c) {
     if (!c.preview) return;
-    $("#detail-visual").innerHTML = '<iframe src="' + safe(c.preview) + '" title="' + esc(c.title) + '交互预览" sandbox="allow-scripts"></iframe>';
+    $("#detail-visual").innerHTML = '<iframe src="' + safe(c.preview) + '" title="' + esc(c.title) + '交互预览" sandbox="allow-scripts allow-forms allow-downloads"></iframe>';
   }
   function toggleMotionPreview(c, button) {
     if (!c.motion_preview) return;
@@ -275,6 +275,14 @@
         replacement?.getAttribute("aria-pressed") || "false"
       );
     }
+    for (const link of main3.querySelectorAll("[data-quick-task]")) {
+      const updated = next.querySelector(
+        `[data-quick-task="${link.dataset.quickTask}"]`
+      );
+      if (updated?.hasAttribute("aria-current"))
+        link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    }
     const sidebar = main3.querySelector(".task-sidebar");
     const nextSidebar = next.querySelector(".task-sidebar");
     const links = [
@@ -298,10 +306,10 @@
       sidebar.scrollTop = 0;
     }
     for (const selector of [".result-intro", ".active-filters"]) {
-      const current = main3.querySelector(selector);
+      const current2 = main3.querySelector(selector);
       const replacement = next.querySelector(selector);
-      if (current.innerHTML !== replacement.innerHTML)
-        current.replaceChildren(...replacement.childNodes);
+      if (current2.innerHTML !== replacement.innerHTML)
+        current2.replaceChildren(...replacement.childNodes);
     }
     const input = main3.querySelector("input[name=q]");
     const value = next.querySelector("input[name=q]").value;
@@ -422,8 +430,8 @@
       ([n, u, m]) => '<a href="' + u + '" ' + (route2.page === "discover" && m === "all" || route2.page === "methods" && m === "methods" ? 'class="active" aria-current="page"' : "") + ">" + n + "</a>"
     ).join("");
   }
-  function card(c) {
-    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false">+</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? external(c.source_url, c.author + " ↗") : esc(c.author)) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><span class="case-status">' + esc(
+  function card(c, index = 0) {
+    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false">+</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? external(c.source_url, c.author + " ↗") : esc(c.author)) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><span class="case-status">' + esc(
       {
         author_example: "作者示例 · 未复跑",
         files_complete: "资料齐备 · 未复跑",
@@ -436,7 +444,9 @@
     ).join("") + "</div></div></article>";
   }
   function gallery(route2) {
-    const list = selectCases(cases, skills, route2);
+    const list = selectCases(cases, skills, route2).sort(
+      (a, b) => Number(b.id === "campus-project") - Number(a.id === "campus-project")
+    );
     const task = findTask(route2.task);
     const availableTasks = tasks.filter(
       (t) => route2.audience === "all" || t.audience === route2.audience
@@ -462,14 +472,17 @@
       (c) => route2.audience === "all" || c.task_ids.some((id) => findTask(id)?.audience === route2.audience)
     ).length;
     const markup = `
-    <section class="task-hero">
-      <div class="hero-copy"><div class="eyebrow">IDEAS INTO YOUR NEXT PROJECT</div><h1>好作品，<br>从你的任务开始。</h1><p>课程汇报、毕设展板，或下一支广告短片。<br>找到合适的案例，也找到制作它的资料。</p></div>
-      <div class="hero-study" aria-label="信息图与网页作品预览">
-        <div class="study-sheet sheet-back"><span>01 / 信息表达</span><img src="${safe(cases.find((c) => c.id === "source-editorial")?.cover || "")}" alt="杂志式信息图原作预览"></div>
-        <div class="study-sheet sheet-front"><span>02 / 网页展示</span><img src="${safe(cases.find((c) => c.id === "paper")?.cover || "")}" alt="网页排版示例预览"></div>
-        <span class="study-caption">从一个灵感，到自己的作品</span>
+    <section class="task-hero hero-scene" aria-label="即现创作画廊介绍">
+      <div class="hero-stage">
+        <div class="hero-light" aria-hidden="true"></div><div class="hero-fallback" aria-hidden="true"></div>
+        <canvas id="hero-ribbon" aria-hidden="true"></canvas>
+        <div class="hero-message hero-message-first"><p>每一个灵感，都值得</p><h1>即刻呈现<span>。</span></h1></div>
+        <div class="hero-message hero-message-next" aria-hidden="true"><p>从看见，到做出</p><div class="hero-large">成为你的作品<span>。</span></div></div>
+        <div class="hero-bottom"><p>从课程汇报、毕设展板，到广告短片。<br>找到好作品，也找到它的制作资料。</p><button class="hero-explore" id="explore-gallery">探索创作案例 <span aria-hidden="true">↗</span></button></div>
+        <div class="hero-scroll" aria-hidden="true"><span>向下探索</span><i></i></div>
       </div>
     </section>
+    <section class="quick-tasks" aria-label="从创作任务开始"><div><span class="eyebrow">CHOOSE YOUR TASK</span><h2>今天，你想做什么？</h2><p>从真实任务出发，查看案例和可取用的资料。</p></div><div class="quick-task-list"><a data-quick-task="presentation" ${route2.task === "presentation" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=presentation">${icon("slides")}<span>课程汇报</span>${icon("arrow")}</a><a data-quick-task="poster" ${route2.task === "poster" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=poster">${icon("frame")}<span>展板与海报</span>${icon("arrow")}</a><a data-quick-task="advertising" ${route2.task === "advertising" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=advertising">${icon("box")}<span>广告与产品</span>${icon("arrow")}</a><a data-quick-task="story" ${route2.task === "story" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=story">${icon("film")}<span>短剧与叙事</span>${icon("arrow")}</a></div></section>
     <section class="scene-switch" aria-label="选择创作场景">
       <button class="scene scene-all" data-audience="all" aria-pressed="${route2.audience === "all"}">${icon("grid")}<span><strong>全部场景</strong><small>自由探索</small></span></button>
       <button class="scene scene-campus" data-audience="campus" aria-pressed="${route2.audience === "campus"}">${icon("slides")}<span><strong>校园创作</strong><small>课程作业 · 毕设 · 作品集</small></span>${icon("arrow")}</button>
@@ -487,7 +500,7 @@
       <div class="results-area">
         <div class="result-intro">
         <div class="result-heading"><div><div class="eyebrow">${esc(audienceNames[route2.audience] || "全部场景")} / ${task ? "任务专题" : "案例精选"}</div><h2>${task ? esc(task.label) : "为下一次创作，找到起点"}</h2></div><span class="result-count">${list.length} 个案例</span></div>
-        ${task ? `<p class="task-description">${esc(task.description)}</p><div class="task-boundary">${esc(task.boundary)}</div>` : '<p class="task-description">按用途挑选，按来源取用。每个案例都说明能拿到什么。</p>'}
+        ${task ? `<p class="task-description">${esc(task.description)}</p><div class="task-boundary">${esc(task.boundary)}</div>` : '<p class="task-description">按用途挑选，按来源取用。任务标签为编辑建议，具体交付请查看详情。</p>'}
         </div><div class="discovery-controls"><form class="search" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果或作者" value="${esc(route2.q)}"><button aria-label="搜索">${icon("arrow")}</button></form><button id="open-filters" class="filter-button">工具与资料筛选</button></div>
         <div class="toolbar"><div class="tabs" aria-label="按媒介筛选">${Object.entries(
       names
@@ -513,9 +526,11 @@
     let action = c.archived ? '<a class="primary" href="#discover?media=' + c.media + '">查看有来源的新案例 ↗</a>' : out ? external(c.primary_url, c.primary_label, "primary") : '<a class="primary" href="' + safe(c.preview) + '" download="' + c.id + '-example.html">获取网页示例代码 ↓</a>';
     main.innerHTML = '<div class="crumb"><a href="' + esc(lastDiscover2) + '">← 返回画廊</a><span>/</span><span>' + names[c.media] + "</span><span>/</span><span>" + esc(c.tag) + "</span></div>" + (c.archived ? '<p class="archive-notice">这项旧布局参考已移出精选。它没有可追溯的原始制作链，原来的画面拆解已撤下。</p>' : "") + '<section class="detail-grid"><div><div class="detail-visual" id="detail-visual">' + preview(c) + "</div>" + (c.motion_preview ? '<button id="load-motion" class="preview-open" aria-pressed="false">播放官方动态 WEBP 预览 ▶</button>' : c.preview ? '<button class="preview-open" id="launch-preview">打开网页交互预览 ↗</button>' : "") + '<div class="visual-caption"><span>' + esc(c.cover_role) + "</span><span>" + esc(c.author) + '</span></div></div><div class="detail-info"><div class="eyebrow">' + names[c.media] + " / " + esc(c.tag) + "</div><h1>" + esc(c.title) + '</h1><div class="detail-task-links">' + c.task_ids.map(
       (id) => `<a href="#discover?task=${id}">${esc(findTask(id)?.label || id)}</a>`
-    ).join("") + '</div><span class="badge">' + esc(c.verification) + '</span><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>来源</dt><dd>' + (out ? external(c.source_url, c.author + " ↗") : esc(c.author)) + "</dd></div><div><dt>能取得</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>需要准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + '</dl><div class="detail-actions">' + action + '<button class="secondary" data-save="' + c.id + '">收藏 +</button></div><p class="action-note">' + (out ? "打开作者原始资料；当前页面不会安装 Skill 或调用生成服务。" : c.archived ? "保留旧链接，不再用拆解文字替代制作文件。" : "HTML/CSS 示例，可本地打开。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "作者实际提供的制作资料" : "本地示例文件") + "</h2>" + (out ? c.resources.map(
+    ).join("") + '</div><span class="badge">' + esc(c.verification) + '</span><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>来源</dt><dd>' + (out ? external(c.source_url, c.author + " ↗") : esc(c.author)) + "</dd></div><div><dt>能取得</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>需要准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>当前缺口</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>使用范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary" data-save="' + c.id + '">收藏 +</button></div><p class="action-note">' + (out ? "打开作者原始资料；当前页面不会安装 Skill 或调用生成服务。" : c.archived ? "保留旧链接，不再用拆解文字替代制作文件。" : "下载独立 HTML 后，可用浏览器打开。部分示例也支持在线预览。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "作者实际提供的制作资料" : "本地示例文件") + "</h2>" + (out ? c.resources.map(
       (r, i) => '<div class="resource-row"><span>' + String(i + 1).padStart(2, "0") + "</span><div>" + external(r.url, r.label + " ↗") + "<small>" + esc(new URL(r.url).hostname) + " · " + esc(r.type) + "</small></div></div>"
-    ).join("") : c.preview ? '<div class="resource-row"><span>01</span><div><a href="' + safe(c.preview) + '" download>独立 HTML 示例 ↓</a><small>本地界面研究，尚未验证跨项目接入</small></div></div>' : '<p class="muted">没有对应的原始工程或配方，已停止提供泛化拆解。</p>') + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><span>原配置选项</span><code>' + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>文件齐不齐，能否做同款？</h3><p class="completeness">' + esc(c.completeness) + "</p>" + (out ? "<h3>关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details><summary>来源、版本与使用范围</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始记录 ↗") + "</p><p>采集 " + collectedDate + " · 仓库版本 " + esc(c.source_commit.slice(0, 12)) + "</p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "仓库许可证 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出案例资料 ↓</button>' : "") + "</aside></section>";
+    ).join("") : c.preview ? '<div class="resource-row"><span>01</span><div><a href="' + safe(c.preview) + '" download>独立 HTML 示例 ↓</a><small>本地界面研究，尚未验证跨项目接入</small></div></div>' : '<p class="muted">没有对应的原始工程或配方，已停止提供泛化拆解。</p>') + (!out && c.steps?.length ? '<h2 class="section-title example-steps-title">如何开始</h2>' + c.steps.map(
+      (step, index) => '<div class="step"><span>' + String(index + 1).padStart(2, "0") + "</span><p>" + esc(step) + "</p></div>"
+    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span>02</span><div><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的示例 ↗</a><small>由本站实际编辑并导出的 HTML，可继续编辑</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><span>原配置选项</span><code>' + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>文件齐不齐，能否做同款？</h3><p class="completeness">' + esc(c.completeness) + "</p>" + (out ? "<h3>关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details><summary>来源、版本与使用范围</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始记录 ↗") + "</p><p>采集 " + collectedDate + " · 仓库版本 " + esc(c.source_commit.slice(0, 12)) + "</p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "仓库许可证 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出案例资料 ↓</button>' : "") + "</aside></section>";
   }
   function savedPage(saved2, storageAvailable2) {
     const ids = Object.keys(saved2);
@@ -534,6 +549,290 @@
   }
   function missing() {
     main.innerHTML = '<div class="empty-state"><h1>这个内容暂时不可用</h1><a href="#discover" class="primary">返回画廊</a></div>';
+  }
+
+  // src/ui/hero-ribbon.ts
+  var current;
+  function unmountRibbon() {
+    current?.destroy();
+    current = void 0;
+  }
+  function mountRibbon() {
+    const canvas = document.querySelector("#hero-ribbon");
+    const scene = canvas?.closest(".hero-scene");
+    if (!canvas || !scene || current?.canvas === canvas) return;
+    unmountRibbon();
+    const gl = canvas.getContext("webgl", {
+      alpha: true,
+      antialias: true,
+      premultipliedAlpha: true
+    });
+    if (!gl) {
+      scene.classList.add("hero-no-webgl");
+      return;
+    }
+    const vertex = `
+    attribute vec2 aParam;
+    uniform float uTime, uProgress, uAspect;
+    uniform vec2 uPointer;
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying float vHeight;
+    mat3 rx(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
+    mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
+    mat3 rz(float a){float c=cos(a),s=sin(a);return mat3(c,s,0.,-s,c,0.,0.,0.,1.);}
+    void main(){
+      float u=aParam.x; float v=aParam.y;
+      float twist=u*.5+.20*sin(u*2.+uTime*.32);
+      float r=1.48+v*.48*cos(twist);
+      vec3 p=vec3(r*cos(u),r*sin(u),v*.48*sin(twist));
+      vec3 n=normalize(vec3(cos(u)*cos(twist),sin(u)*cos(twist),sin(twist)));
+      mat3 rot=rz(-.12)*rx(.94+uPointer.y*.10)*ry(.13+uPointer.x*.18+uTime*.065);
+      p=rot*p; n=rot*n;
+      float zoom=mix(.60,.95,smoothstep(.7,1.2,uAspect))+uProgress*.48;
+      float tall=mix(1.4,1.,smoothstep(.7,1.2,uAspect));
+      gl_Position=vec4(p.x*zoom/uAspect,p.y*zoom*tall,p.z*.13,1.);
+      vUv=vec2(u/6.2831853,(v+1.)*.5);vNormal=n;vHeight=p.y;
+    }`;
+    const fragment = `
+    precision mediump float;
+    uniform sampler2D uTexture;
+    varying vec2 vUv; varying vec3 vNormal; varying float vHeight;
+    void main(){
+      vec3 n=normalize(vNormal);
+      float light=.30+.62*abs(dot(n,normalize(vec3(-.48,.62,1.))));
+      float rim=pow(1.-abs(n.z),2.)*.16;
+      float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5;
+      vec3 bronze=mix(vec3(.20,.115,.074),vec3(.75,.51,.33),clamp(light+rim,0.,1.));
+      bronze*=mix(.54,1.,smoothstep(-1.4,.65,vHeight));
+      vec4 mark=texture2D(uTexture,vUv);
+      vec3 ink=vec3(.95,.91,.79)*(.38+.62*light);
+      gl_FragColor=vec4(mix(bronze,ink,mark.a*.90)+grain*.032,1.);
+    }`;
+    function shader(kind, source) {
+      const result = gl.createShader(kind);
+      if (!result) return null;
+      gl.shaderSource(result, source);
+      gl.compileShader(result);
+      if (!gl.getShaderParameter(result, gl.COMPILE_STATUS)) {
+        gl.deleteShader(result);
+        return null;
+      }
+      return result;
+    }
+    const vs = shader(gl.VERTEX_SHADER, vertex), fs = shader(gl.FRAGMENT_SHADER, fragment);
+    const program = gl.createProgram();
+    if (!vs || !fs || !program) {
+      scene.classList.add("hero-no-webgl");
+      return;
+    }
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      scene.classList.add("hero-no-webgl");
+      return;
+    }
+    gl.useProgram(program);
+    const points = [], indices = [], segments = 200, strips = 16;
+    for (let i = 0; i <= segments; i++)
+      for (let j = 0; j <= strips; j++)
+        points.push(i / segments * Math.PI * 2, j / strips * 2 - 1);
+    for (let i = 0; i < segments; i++)
+      for (let j = 0; j < strips; j++) {
+        const a = i * (strips + 1) + j, b = a + strips + 1;
+        indices.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    const vertices = gl.createBuffer(), elements = gl.createBuffer(), texture = gl.createTexture();
+    if (!vertices || !elements || !texture) {
+      scene.classList.add("hero-no-webgl");
+      return;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertices);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+    const attr = gl.getAttribLocation(program, "aParam");
+    gl.enableVertexAttribArray(attr);
+    gl.vertexAttribPointer(attr, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elements);
+    gl.bufferData(
+      gl.ELEMENT_ARRAY_BUFFER,
+      new Uint16Array(indices),
+      gl.STATIC_DRAW
+    );
+    const surface = document.createElement("canvas");
+    surface.width = 2048;
+    surface.height = 256;
+    const ctx = surface.getContext("2d");
+    if (!ctx) {
+      scene.classList.add("hero-no-webgl");
+      return;
+    }
+    const labels = [
+      "IDEA",
+      "IMAGE",
+      "MOTION",
+      "WEB",
+      "PPT",
+      "DESIGN",
+      "STORY",
+      "CREATE"
+    ];
+    ctx.strokeStyle = "white";
+    ctx.fillStyle = "white";
+    ctx.lineWidth = 9;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    labels.forEach((label, i) => {
+      const x = i * 256 + 128;
+      ctx.save();
+      ctx.translate(x, 105);
+      ctx.beginPath();
+      if (i % 4 === 0) {
+        ctx.rect(-38, -38, 76, 76);
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(18, 0);
+        ctx.moveTo(0, -18);
+        ctx.lineTo(0, 18);
+      } else if (i % 4 === 1) {
+        ctx.arc(0, 0, 43, 0, Math.PI * 2);
+        ctx.moveTo(-20, 15);
+        ctx.lineTo(4, -16);
+        ctx.lineTo(26, 15);
+      } else if (i % 4 === 2) {
+        ctx.moveTo(-38, -38);
+        ctx.lineTo(35, 0);
+        ctx.lineTo(-38, 38);
+        ctx.closePath();
+      } else {
+        ctx.rect(-44, -33, 88, 66);
+        ctx.moveTo(-24, -10);
+        ctx.lineTo(-10, 0);
+        ctx.lineTo(-24, 10);
+        ctx.moveTo(4, 10);
+        ctx.lineTo(25, 10);
+      }
+      ctx.stroke();
+      ctx.font = '600 21px Arial, "Microsoft YaHei", sans-serif';
+      ctx.textAlign = "center";
+      ctx.fillText(label, 0, 85);
+      ctx.restore();
+    });
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, surface);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+    gl.clearColor(0, 0, 0, 0);
+    const timeLoc = gl.getUniformLocation(program, "uTime"), progressLoc = gl.getUniformLocation(program, "uProgress"), aspectLoc = gl.getUniformLocation(program, "uAspect"), pointerLoc = gl.getUniformLocation(program, "uPointer");
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0, last = 0, time = 0, visible = true, disposed = false, progress = 0, targetX = 0, targetY = 0, pointerX = 0, pointerY = 0;
+    function resize() {
+      const headerOffset = Math.max(
+        0,
+        Math.min(180, Math.round(scene.getBoundingClientRect().top + scrollY))
+      );
+      scene.style.setProperty("--hero-header-offset", headerOffset + "px");
+      const rect = canvas.getBoundingClientRect(), ratio = Math.min(devicePixelRatio || 1, 1.5);
+      canvas.width = Math.max(1, Math.round(rect.width * ratio));
+      canvas.height = Math.max(1, Math.round(rect.height * ratio));
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(aspectLoc, rect.width / Math.max(rect.height, 1));
+      requestDraw();
+    }
+    function updateScroll() {
+      const r = scene.getBoundingClientRect(), travel = Math.max(
+        1,
+        scene.offsetHeight - (canvas.parentElement?.clientHeight || innerHeight)
+      );
+      progress = motion.matches ? 0 : Math.max(0, Math.min(1, -r.top / travel));
+      scene.style.setProperty("--hero-progress", String(progress));
+      requestDraw();
+    }
+    function draw(now) {
+      frame = 0;
+      if (disposed || !visible || document.hidden) {
+        last = 0;
+        return;
+      }
+      if (!motion.matches) {
+        if (last) time += Math.min((now - last) / 1e3, 0.05);
+        last = now;
+        pointerX += (targetX - pointerX) * 0.035;
+        pointerY += (targetY - pointerY) * 0.035;
+      }
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.uniform1f(timeLoc, time);
+      gl.uniform1f(progressLoc, progress);
+      gl.uniform2f(pointerLoc, pointerX, pointerY);
+      gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+      if (!motion.matches) frame = requestAnimationFrame(draw);
+    }
+    function requestDraw() {
+      if (!frame && visible && !document.hidden && !disposed)
+        frame = requestAnimationFrame(draw);
+    }
+    function move(e) {
+      if (motion.matches || e.pointerType === "touch") return;
+      const r = scene.getBoundingClientRect();
+      targetX = ((e.clientX - r.left) / r.width - 0.5) * 2;
+      targetY = ((e.clientY - r.top) / innerHeight - 0.5) * 2;
+      requestDraw();
+    }
+    function resetPointer() {
+      targetX = 0;
+      targetY = 0;
+    }
+    function visibility() {
+      last = 0;
+      requestDraw();
+    }
+    function motionChange() {
+      last = 0;
+      updateScroll();
+      requestDraw();
+    }
+    const intersection = new IntersectionObserver(
+      (entries) => {
+        visible = !!entries[0]?.isIntersecting;
+        last = 0;
+        requestDraw();
+      },
+      { rootMargin: "100px" }
+    );
+    const ro = new ResizeObserver(resize);
+    intersection.observe(scene);
+    ro.observe(canvas);
+    scene.addEventListener("pointermove", move, { passive: true });
+    scene.addEventListener("pointerleave", resetPointer);
+    window.addEventListener("scroll", updateScroll, { passive: true });
+    document.addEventListener("visibilitychange", visibility);
+    motion.addEventListener("change", motionChange);
+    resize();
+    updateScroll();
+    current = {
+      canvas,
+      destroy: () => {
+        disposed = true;
+        cancelAnimationFrame(frame);
+        intersection.disconnect();
+        ro.disconnect();
+        scene.removeEventListener("pointermove", move);
+        scene.removeEventListener("pointerleave", resetPointer);
+        window.removeEventListener("scroll", updateScroll);
+        document.removeEventListener("visibilitychange", visibility);
+        motion.removeEventListener("change", motionChange);
+        gl.deleteBuffer(vertices);
+        gl.deleteBuffer(elements);
+        gl.deleteTexture(texture);
+        gl.deleteProgram(program);
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+      }
+    };
   }
 
   // src/domain/collection.ts
@@ -646,6 +945,7 @@
     if (filtering) main2.style.minHeight = main2.scrollHeight + "px";
     else main2.style.minHeight = "";
     route = nextRoute;
+    if (route.page !== "discover") unmountRibbon();
     if (!filtering) nav(route);
     $$("video").forEach((video) => video.pause());
     if (route.page === "discover") gallery(route);
@@ -655,6 +955,7 @@
     else missing();
     sync();
     bindMedia();
+    if (route.page === "discover") mountRibbon();
     layout();
     const scenes = main2.querySelector(".scene-switch");
     updateStickyOffsets();
@@ -701,6 +1002,13 @@
     }
     const button = event.target.closest("button");
     if (!button) return;
+    if (button.id === "explore-gallery") {
+      main2.querySelector(".quick-tasks")?.scrollIntoView({
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        block: "start"
+      });
+      return;
+    }
     if (button.dataset.themeChoice) {
       setTheme(button.dataset.themeChoice);
       return;
