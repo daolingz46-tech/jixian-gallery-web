@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "source_commit": "b335ba07da65ca5f65ee9f805012e0398e7c4413",
-  "prepared_at": "2026-10-27T18:35:29.296708+00:00",
+  "source_commit": "19d2ff194c5826225bc300a6372fe5b781d993ad",
+  "prepared_at": "2026-10-28T06:21:57.226379+00:00",
   "description": "Public website files only. Network reachability is checked separately."
 }

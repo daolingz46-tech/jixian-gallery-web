@@ -482,6 +482,15 @@
         <div class="hero-scroll" aria-hidden="true"><span>向下探索</span><i></i></div>
       </div>
     </section>
+    <section class="curated" aria-label="热门创作资源推荐">
+      <div class="curated-heading"><div><span class="eyebrow">CURATED FOR MAKERS / 01</span><h2>值得动手试的创作工具</h2><p>从灵感到作品，精选社区关注度高、用途明确的公开项目。</p></div><span class="curated-note">GitHub 星标采集于 2026.10.28<br>收录参考资料 · 尚未逐一复跑</span></div>
+      <div class="curated-grid">
+        <article class="curated-card curated-image"><div class="curated-index"><span>01 / IMAGE & MOTION</span><span>✳</span></div><h3>图片与动效</h3><p>从静态画面到动态影像，探索生成与节点工作流。</p><div class="curated-links"><a href="https://github.com/Comfy-Org/ComfyUI" target="_blank" rel="noopener noreferrer"><strong>ComfyUI</strong><span>143.5k ★ · 可视化生成工作流 ↗</span></a><a href="https://github.com/guoyww/AnimateDiff" target="_blank" rel="noopener noreferrer"><strong>AnimateDiff</strong><span>12.3k ★ · 图像动画研究工具 ↗</span></a></div><small>需安装模型；硬件与模型许可依方案而定。</small></article>
+        <article class="curated-card curated-web"><div class="curated-index"><span>02 / WEB INTERACTION</span><span>↗</span></div><h3>网页交互</h3><p>让滚动、切换与视觉反馈自然衔接。</p><div class="curated-links"><a href="https://github.com/motiondivision/motion" target="_blank" rel="noopener noreferrer"><strong>Motion</strong><span>34.6k ★ · JavaScript / React 动画 ↗</span></a><a href="https://github.com/greensock/GSAP" target="_blank" rel="noopener noreferrer"><strong>GSAP</strong><span>29.8k ★ · 时间轴与滚动动画 ↗</span></a></div><small>面向开发者；请查看各项目的最新许可。</small></article>
+        <article class="curated-card curated-slides"><div class="curated-index"><span>03 / PRESENTATION</span><span>▦</span></div><h3>课程与汇报</h3><p>把资料整理成有结构、可表达的演示内容。</p><div class="curated-links"><a href="https://github.com/hugohe3/ppt-master" target="_blank" rel="noopener noreferrer"><strong>PPT Master</strong><span>69.6k ★ · AI 辅助制作 PPT ↗</span></a><a href="https://github.com/slidevjs/slidev" target="_blank" rel="noopener noreferrer"><strong>Slidev</strong><span>49.2k ★ · Markdown 幻灯片 ↗</span></a></div><small>需搭建或使用开发工具；输出与 AI 服务依项目配置。</small></article>
+        <article class="curated-card curated-story"><div class="curated-index"><span>04 / SHORT VIDEO</span><span>▶</span></div><h3>短剧与短视频</h3><p>了解剧本、分镜、生成与剪辑如何组成流程。</p><div class="curated-links"><a href="https://github.com/chatfire-AI/huobao-drama" target="_blank" rel="noopener noreferrer"><strong>火宝短剧</strong><span>16.7k ★ · 短剧生产流程 ↗</span></a><a href="https://github.com/harry0703/MoneyPrinterTurbo" target="_blank" rel="noopener noreferrer"><strong>MoneyPrinterTurbo</strong><span>135.8k ★ · 短视频工作流 ↗</span></a></div><small>通常需要模型或 API；火宝短剧标注非商业许可，商用前须核实授权。</small></article>
+      </div><p class="curated-foot">星标反映社区关注，不代表本站已复现或保证收益。功能、费用与许可请以原项目为准。 <a href="creative-resources.html">查看选用说明与入门路径 ↗</a></p>
+    </section>
     <section class="quick-tasks" aria-label="从创作任务开始"><div><span class="eyebrow">CHOOSE YOUR TASK</span><h2>今天，你想做什么？</h2><p>从真实任务出发，查看案例和可取用的资料。</p></div><div class="quick-task-list"><a data-quick-task="presentation" ${route2.task === "presentation" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=presentation">${icon("slides")}<span>课程汇报</span>${icon("arrow")}</a><a data-quick-task="poster" ${route2.task === "poster" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=poster">${icon("frame")}<span>展板与海报</span>${icon("arrow")}</a><a data-quick-task="advertising" ${route2.task === "advertising" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=advertising">${icon("box")}<span>广告与产品</span>${icon("arrow")}</a><a data-quick-task="story" ${route2.task === "story" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=story">${icon("film")}<span>短剧与叙事</span>${icon("arrow")}</a></div></section>
     <section class="scene-switch" aria-label="选择创作场景">
       <button class="scene scene-all" data-audience="all" aria-pressed="${route2.audience === "all"}">${icon("grid")}<span><strong>全部场景</strong><small>自由探索</small></span></button>
@@ -606,8 +615,8 @@
       vec3 bronze=mix(vec3(.20,.115,.074),vec3(.75,.51,.33),clamp(light+rim,0.,1.));
       bronze*=mix(.54,1.,smoothstep(-1.4,.65,vHeight));
       vec4 mark=texture2D(uTexture,vUv);
-      vec3 ink=vec3(.95,.91,.79)*(.38+.62*light);
-      gl_FragColor=vec4(mix(bronze,ink,mark.a*.90)+grain*.032,1.);
+      vec3 artwork=mark.rgb*(.48+.65*light);
+      gl_FragColor=vec4(mix(bronze,artwork,mark.a*.94)+grain*.024,1.);
     }`;
     function shader(kind, source) {
       const result = gl.createShader(kind);
@@ -667,54 +676,90 @@
       scene.classList.add("hero-no-webgl");
       return;
     }
-    const labels = [
-      "IDEA",
-      "IMAGE",
-      "MOTION",
-      "WEB",
-      "PPT",
-      "DESIGN",
-      "STORY",
-      "CREATE"
+    const palettes = [
+      ["#edbda2", "#b54b43", "#f9eacb"],
+      ["#a2c0b0", "#2f5c52", "#e8efdd"],
+      ["#cbbddc", "#68548c", "#f6d3a8"],
+      ["#e9c37e", "#ad5b39", "#fff0d2"],
+      ["#9baec5", "#334d73", "#efdfbd"],
+      ["#e6a49e", "#a43f58", "#f5e4cd"],
+      ["#a6b78a", "#536d49", "#eddfb6"],
+      ["#d4b5a3", "#845c6f", "#fff0d3"]
     ];
-    ctx.strokeStyle = "white";
-    ctx.fillStyle = "white";
-    ctx.lineWidth = 9;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    labels.forEach((label, i) => {
-      const x = i * 256 + 128;
+    palettes.forEach(([base, dark, pale], i) => {
+      if (!base || !dark || !pale) return;
+      const x = i * 256;
+      const gradient = ctx.createLinearGradient(x, 0, x + 256, 256);
+      gradient.addColorStop(0, pale);
+      gradient.addColorStop(0.58, base);
+      gradient.addColorStop(1, dark);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, 0, 256, 256);
       ctx.save();
-      ctx.translate(x, 105);
-      ctx.beginPath();
+      ctx.translate(x + 128, 128);
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = dark;
       if (i % 4 === 0) {
-        ctx.rect(-38, -38, 76, 76);
-        ctx.moveTo(-18, 0);
-        ctx.lineTo(18, 0);
-        ctx.moveTo(0, -18);
-        ctx.lineTo(0, 18);
+        ctx.beginPath();
+        ctx.arc(0, 0, 79, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pale;
+        ctx.beginPath();
+        ctx.arc(24, -17, 54, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = pale;
+        ctx.lineWidth = 4;
+        for (let n = -2; n <= 2; n++) {
+          ctx.beginPath();
+          ctx.moveTo(-100, n * 25 + 60);
+          ctx.lineTo(100, n * 25 - 40);
+          ctx.stroke();
+        }
       } else if (i % 4 === 1) {
-        ctx.arc(0, 0, 43, 0, Math.PI * 2);
-        ctx.moveTo(-20, 15);
-        ctx.lineTo(4, -16);
-        ctx.lineTo(26, 15);
+        ctx.rotate(-0.22);
+        ctx.fillRect(-74, -93, 148, 186);
+        ctx.fillStyle = pale;
+        ctx.fillRect(-57, -72, 114, 3);
+        ctx.fillRect(-57, 50, 84, 3);
+        ctx.beginPath();
+        ctx.arc(0, -6, 45, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = base;
+        ctx.fillRect(-9, -45, 18, 80);
+        ctx.fillRect(-40, -14, 80, 18);
       } else if (i % 4 === 2) {
-        ctx.moveTo(-38, -38);
-        ctx.lineTo(35, 0);
-        ctx.lineTo(-38, 38);
-        ctx.closePath();
+        for (let n = 0; n < 7; n++) {
+          ctx.save();
+          ctx.rotate(n * Math.PI / 7);
+          ctx.beginPath();
+          ctx.ellipse(0, -43, 21, 58, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.fillStyle = pale;
+        ctx.beginPath();
+        ctx.arc(0, 0, 24, 0, Math.PI * 2);
+        ctx.fill();
       } else {
-        ctx.rect(-44, -33, 88, 66);
-        ctx.moveTo(-24, -10);
-        ctx.lineTo(-10, 0);
-        ctx.lineTo(-24, 10);
-        ctx.moveTo(4, 10);
-        ctx.lineTo(25, 10);
+        ctx.beginPath();
+        ctx.moveTo(-112, 75);
+        ctx.bezierCurveTo(-45, -100, 12, 122, 112, -80);
+        ctx.lineTo(112, 120);
+        ctx.lineTo(-112, 120);
+        ctx.fill();
+        ctx.strokeStyle = pale;
+        ctx.lineWidth = 5;
+        for (let n = 0; n < 5; n++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, 22 + n * 17, Math.PI, Math.PI * 2);
+          ctx.stroke();
+        }
       }
-      ctx.stroke();
-      ctx.font = '600 21px Arial, "Microsoft YaHei", sans-serif';
-      ctx.textAlign = "center";
-      ctx.fillText(label, 0, 85);
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = pale;
+      ctx.font = "600 10px Arial, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(["FORM / 01", "EDITORIAL / 02", "BLOOM / 03", "FLOW / 04", "FORM / 05", "EDITORIAL / 06", "BLOOM / 07", "FLOW / 08"][i] || "", -108, -103);
       ctx.restore();
     });
     gl.bindTexture(gl.TEXTURE_2D, texture);
