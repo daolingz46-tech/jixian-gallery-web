@@ -62,6 +62,7 @@
       if (boundMedia.has(img)) return;
       boundMedia.add(img);
       const loaded = () => {
+        img.classList.remove("is-loading");
         const cover = img.closest(".case-card .cover");
         if (cover && !cover.closest(".task-grid") && img.naturalWidth > 0)
           cover.style.aspectRatio = String(
@@ -70,6 +71,7 @@
         layout();
       };
       const failed = () => {
+        img.classList.remove("is-loading");
         img.classList.add("broken");
         img.alt = "原站预览暂不可用";
       };
@@ -78,6 +80,8 @@
       if (img.complete) {
         if (img.naturalWidth > 0) loaded();
         else failed();
+      } else {
+        img.classList.add("is-loading");
       }
     });
     $$("video", main3).forEach((video) => {
@@ -314,6 +318,21 @@
     const input = main3.querySelector("input[name=q]");
     const value = next.querySelector("input[name=q]").value;
     if (input.value !== value) input.value = value;
+    const searchForm = main3.querySelector("#search-form");
+    const nextSearchForm = next.querySelector("#search-form");
+    if (searchForm && nextSearchForm)
+      searchForm.className = nextSearchForm.className;
+    const clearSearch = main3.querySelector("#clear-search");
+    const nextClearSearch = next.querySelector("#clear-search");
+    if (clearSearch && nextClearSearch)
+      clearSearch.hidden = nextClearSearch.hidden;
+    const openFilters = main3.querySelector("#open-filters");
+    const nextOpenFilters = next.querySelector("#open-filters");
+    if (openFilters && nextOpenFilters) {
+      openFilters.className = nextOpenFilters.className;
+      if (openFilters.innerHTML !== nextOpenFilters.innerHTML)
+        openFilters.innerHTML = nextOpenFilters.innerHTML;
+    }
     for (const button of main3.querySelectorAll("[data-media]")) {
       const updated = next.querySelector(
         `[data-media="${button.dataset.media}"]`
@@ -511,13 +530,13 @@
         <div class="result-intro">
         <div class="result-heading"><div><div class="eyebrow">${esc(audienceNames[route2.audience] || "全部场景")} / ${task ? "任务专题" : "案例精选"}</div><h2>${task ? esc(task.label) : "为下一次创作，找到起点"}</h2></div><span class="result-count">${list.length} 个案例</span></div>
         ${task ? `<p class="task-description">${esc(task.description)}</p><div class="task-boundary">${esc(task.boundary)}</div>` : '<p class="task-description">按用途挑选，按来源取用。任务标签为编辑建议，具体交付请查看详情。</p>'}
-        </div><div class="discovery-controls"><form class="search" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果或作者" value="${esc(route2.q)}"><button aria-label="搜索">${icon("arrow")}</button></form><button id="open-filters" class="filter-button">工具与资料筛选</button></div>
+        </div><div class="discovery-controls"><form class="search ${route2.q ? "has-value" : ""}" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果或作者" value="${esc(route2.q)}"><button type="button" id="clear-search" class="search-clear" aria-label="清除搜索" ${route2.q ? "" : "hidden"}>×</button><button type="submit" aria-label="搜索">${icon("arrow")}</button></form><button id="open-filters" class="filter-button ${filters.filter((k) => k !== "q").length ? "has-active" : ""}">工具与资料筛选${filters.filter((k) => k !== "q").length ? ` <span class="filter-badge">${filters.filter((k) => k !== "q").length}</span>` : ""}</button></div>
         <div class="toolbar"><div class="tabs" aria-label="按媒介筛选">${Object.entries(
       names
     ).map(
       ([key, label]) => `<button data-media="${key}" class="${route2.media === key ? "active" : ""}" aria-pressed="${route2.media === key}">${label}</button>`
     ).join("")}</div></div>
-        <div class="active-filters">${filters.map((key) => `<button data-clear="${key}">${esc(key === "tool" ? tools[route2[key]] || route2[key] : key === "access" ? accessNames[route2.access] : route2[key])} ×</button>`).join("")}</div>
+        <div class="active-filters">${filters.map((key) => `<button data-clear="${key}">${esc(key === "tool" ? tools[route2[key]] || route2[key] : key === "access" ? accessNames[route2.access] : route2[key])} ×</button>`).join("")}${filters.length > 1 ? '<button data-clear="all" class="clear-all">清除全部</button>' : ""}</div>
         <div class="gallery task-grid" aria-label="创作画廊">${list.length ? list.map(card).join("") : `<div class="empty-state"><div class="empty-icon">${icon(task?.icon || "search")}</div><h2>${taskCount === 0 ? "这项任务的案例正在准备中" : "暂时没有匹配的案例"}</h2><p>${taskCount === 0 ? esc(task?.boundary || "") : "试试其他关键词，或撤销筛选条件。"}</p><a class="secondary" href="${esc(taskCount === 0 ? discoverUrl(route2, { task: "all", media: "all", q: "", tool: "all", access: "all" }) : taskLink(route2.task))}">${taskCount === 0 ? "浏览其他任务" : "清除筛选"}</a></div>`}</div>
         <div class="lower-note"><strong>资料可追溯，取用有依据。</strong><span>作者示例与本站复跑分别标注 · 原始资料采集 ${collectedDate}</span></div>
       </div>
@@ -547,7 +566,7 @@
     main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR COLLECTION, WITH ITS SOURCES</div><h1>好作品，有据可循。</h1><p>收藏会同时保留作者、原文件链接与备注。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续发现 ↗</a><button class="primary" id="export-saved" ' + (!ids.length ? "disabled" : "") + '>导出清单 ↓</button></div></section><div class="board-name"><span>我的收藏 / ' + ids.length + '</span><span>仅保存在本浏览器</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
       const c = cases.find((c2) => c2.id === id);
       if (!c) return "";
-      return '<article class="saved-item"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + c.delivery) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="想用在什么项目？">' + esc(saved2[id]?.note) + '</textarea><button class="remove-save" data-save="' + id + '">移出收藏</button></div></article>';
+      return '<article class="saved-item"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + c.delivery) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="想用在什么项目？">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
     }).join("") : '<div class="empty-state"><h2>收藏下一次想用的作品</h2><p>在画廊点“+”，把来源与文件链接一起保存。</p><a href="#discover" class="primary">去发现 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>浏览器未允许持久保存，请导出清单。</p>" : "");
   }
   function methods() {
@@ -876,11 +895,44 @@
   var timer;
   var releaseTimer;
   var scrolls = {};
-  function notify(text) {
-    $("#toast").textContent = text;
-    $("#toast").classList.add("show");
+  var undoAction;
+  var searchDebounce;
+  function notify(text, onUndo) {
+    const toast = $("#toast");
+    undoAction = onUndo;
+    if (onUndo) {
+      toast.innerHTML = "";
+      const msg = document.createElement("span");
+      msg.textContent = text;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "toast-undo";
+      btn.textContent = "撤销";
+      btn.onclick = () => {
+        const action = undoAction;
+        undoAction = void 0;
+        toast.classList.remove("show");
+        action?.();
+      };
+      toast.append(msg, btn);
+    } else {
+      toast.textContent = text;
+    }
+    toast.classList.add("show");
     clearTimeout(timer);
-    timer = window.setTimeout(() => $("#toast").classList.remove("show"), 2600);
+    timer = window.setTimeout(
+      () => {
+        toast.classList.remove("show");
+        undoAction = void 0;
+      },
+      onUndo ? 4200 : 2600
+    );
+  }
+  function pulse(el) {
+    if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    el.classList.remove("is-popping");
+    void el.offsetWidth;
+    el.classList.add("is-popping");
   }
   function persist() {
     storageAvailable = saveCollection(browserStorage, saved);
@@ -897,9 +949,20 @@
       button.setAttribute("aria-label", (on ? "取消收藏：" : "收藏：") + c.title);
     });
   }
-  function setTheme(value) {
+  function setTheme(value, animate = false) {
     const theme = ["light", "dark"].includes(value) ? value : "light";
+    if (animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.documentElement.classList.add("theme-animating");
+      window.setTimeout(
+        () => document.documentElement.classList.remove("theme-animating"),
+        260
+      );
+    }
     document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("jixian-theme", theme);
+    } catch {
+    }
     $$("[data-theme-choice]").forEach(
       (button) => button.setAttribute(
         "aria-pressed",
@@ -946,6 +1009,11 @@
     else if (route.page === "saved") savedPage(saved, storageAvailable);
     else if (route.page === "methods") methods();
     else missing();
+    if (!filtering && mode !== "initial" && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      main2.classList.remove("page-enter");
+      void main2.offsetWidth;
+      main2.classList.add("page-enter");
+    }
     sync();
     bindMedia();
     if (route.page === "discover") mountRibbon();
@@ -1003,15 +1071,37 @@
       return;
     }
     if (button.dataset.themeChoice) {
-      setTheme(button.dataset.themeChoice);
+      setTheme(button.dataset.themeChoice, true);
+      return;
+    }
+    if (button.id === "clear-search") {
+      const form = button.closest("#search-form");
+      const input = form?.querySelector("input[name=q]");
+      if (input) {
+        input.value = "";
+        input.focus();
+      }
+      form?.classList.remove("has-value");
+      button.hidden = true;
+      clearTimeout(searchDebounce);
+      if (route.q) navigate(discoverUrl(route, { q: "" }));
       return;
     }
     if (button.dataset.save) {
       const id = button.dataset.save;
       if (!cases.some((c2) => c2.id === id)) return;
       if (saved[id]) {
+        const removed = saved[id];
         delete saved[id];
-        notify("已移出收藏");
+        notify("已移出收藏", () => {
+          saved[id] = removed;
+          persist();
+          if (route.page === "saved") {
+            savedPage(saved, storageAvailable);
+            bindMedia();
+          }
+          sync();
+        });
       } else {
         saved[id] = { note: "", savedAt: (/* @__PURE__ */ new Date()).toISOString() };
         notify("已收藏作品与来源");
@@ -1022,6 +1112,8 @@
         bindMedia();
       }
       sync();
+      pulse(document.querySelector(`[data-save="${CSS.escape(id)}"]`) || button);
+      pulse($("#save-count"));
       return;
     }
     if (button.dataset.media) {
@@ -1043,6 +1135,10 @@
     }
     if (button.dataset.clear) {
       const key = button.dataset.clear;
+      if (key === "all") {
+        navigate(discoverUrl(route, { q: "", tool: "all", access: "all" }));
+        return;
+      }
       if (key === "q" || key === "tool" || key === "access")
         navigate(discoverUrl(route, { [key]: key === "q" ? "" : "all" }));
       return;
@@ -1063,7 +1159,13 @@
       return;
     }
     if (button.id === "clear-advanced") {
-      $("#filter-form").reset();
+      const form = $("#filter-form");
+      form.reset();
+      $("#filter-dialog").close();
+      if (route.tool !== "all" || route.access !== "all") {
+        navigate(discoverUrl(route, { tool: "all", access: "all" }));
+        notify("已重置工具与资料筛选");
+      }
       return;
     }
     const c = cases.find((c2) => c2.id === route.id);
@@ -1121,12 +1223,55 @@
   });
   document.addEventListener("input", (event) => {
     const input = event.target;
+    if (input instanceof HTMLInputElement && input.name === "q") {
+      const form = input.closest("#search-form");
+      const clearBtn = form?.querySelector("#clear-search");
+      const hasVal = input.value.length > 0;
+      form?.classList.toggle("has-value", hasVal);
+      if (clearBtn) clearBtn.hidden = !hasVal;
+      clearTimeout(searchDebounce);
+      searchDebounce = window.setTimeout(() => {
+        const nextHash = discoverUrl(route, { q: input.value.trim() });
+        if (nextHash !== location.hash) {
+          history.replaceState(null, "", nextHash);
+          render();
+        }
+      }, 260);
+      return;
+    }
     if (!(input instanceof HTMLTextAreaElement)) return;
     const id = input.dataset.note;
     const entry = id ? saved[id] : void 0;
     if (entry) {
       entry.note = input.value;
       persist();
+      const status = input.closest(".saved-item")?.querySelector(".note-status");
+      if (status) {
+        status.textContent = "已自动保存";
+        status.classList.add("on");
+      }
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (!event.target.closest(".hero-controls details")) {
+      $$(".hero-controls details[open]").forEach((d) => {
+        d.open = false;
+      });
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement) && !(event.target instanceof HTMLSelectElement) && !document.querySelector("dialog[open]")) {
+      const searchInput = main2.querySelector("input[name=q]");
+      if (searchInput) {
+        event.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+    } else if (event.key === "Escape") {
+      $$(".hero-controls details[open]").forEach((d) => {
+        d.open = false;
+      });
     }
   });
   document.addEventListener(
@@ -1149,6 +1294,12 @@
     updateStickyOffsets();
   });
   if (!location.hash) history.replaceState(null, "", location.href + "#discover");
-  setTheme(new URLSearchParams(location.search).get("theme") || "light");
+  var storedTheme = null;
+  try {
+    storedTheme = localStorage.getItem("jixian-theme");
+  } catch {
+  }
+  var initialTheme = new URLSearchParams(location.search).get("theme") || storedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  setTheme(initialTheme);
   render("initial");
 })();
