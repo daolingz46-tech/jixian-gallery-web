@@ -61,4 +61,71 @@ dialog[open]{opacity:1;transform:translateY(0) scale(1)}
 dialog::backdrop{transition:opacity var(--dur-base) var(--ease-out),overlay var(--dur-base) allow-discrete,display var(--dur-base) allow-discrete;opacity:0}
 dialog[open]::backdrop{opacity:1}
 @starting-style{dialog[open]::backdrop{opacity:0}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Frosted-glass sticky bars, tactile cards, scroll reveal, and back-to-top */
+.scene-switch,.discovery-controls,.toolbar{
+  background:color-mix(in srgb,var(--bg) 84%,transparent)!important;
+  backdrop-filter:saturate(180%) blur(16px);
+  -webkit-backdrop-filter:saturate(180%) blur(16px);
+}
+.curated-card{
+  transition:transform var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),opacity var(--dur-slow) var(--ease-out);
+}
+.curated-card:hover{
+  transform:translateY(-3px);
+  border-color:color-mix(in srgb,var(--accent) 45%,var(--line));
+  box-shadow:0 12px 28px rgba(0,0,0,.06);
+}
+.task-grid .case-card{
+  border-radius:14px;
+  transition:transform var(--dur-base) var(--ease-out),opacity var(--dur-slow) var(--ease-out)!important;
+}
+.task-grid .case-card .cover{
+  transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out);
+}
+.task-grid .case-card:hover .cover{
+  border-color:color-mix(in srgb,var(--accent) 42%,var(--line));
+  box-shadow:0 14px 30px rgba(0,0,0,.07);
+  transform:translateY(-3px);
+}
+.task-grid .case-card .card-arrow{
+  display:inline-block;
+  transition:transform var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);
+}
+.task-grid .case-card:hover .card-arrow{
+  transform:translate(2px,-2px);
+  color:var(--accent);
+}
+.curated-card,.quick-task-list a,.task-grid .case-card{
+  opacity:0;
+  transform:translateY(14px);
+}
+.curated-card.is-revealed,.quick-task-list a.is-revealed,.task-grid .case-card.is-revealed{
+  opacity:1;
+  transform:translateY(0);
+  transition-delay:var(--reveal-delay,0ms);
+}
+.detail-grid,.detail-bottom{
+  animation:jx-detail-in var(--dur-slow) var(--ease-out);
+}
+@keyframes jx-detail-in{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.back-to-top{
+  position:fixed;right:24px;bottom:24px;z-index:45;
+  padding:9px 15px;border-radius:99px;
+  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  border:1px solid var(--line);
+  color:var(--text);font-size:12px;font-weight:500;
+  backdrop-filter:saturate(180%) blur(14px);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  box-shadow:0 8px 24px rgba(0,0,0,.1);
+  opacity:0;transform:translateY(12px) scale(0.94);pointer-events:none;
+  transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out),border-color var(--dur-fast) var(--ease-out);
+}
+.back-to-top.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.back-to-top:hover{border-color:var(--accent);color:var(--accent)}
+.back-to-top:active{transform:scale(0.95)}
+@media(max-width:700px){.back-to-top{right:16px;bottom:16px;padding:8px 13px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.curated-card,.quick-task-list a,.task-grid .case-card{opacity:1!important;transform:none!important}}

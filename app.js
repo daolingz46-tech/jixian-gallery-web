@@ -1016,7 +1016,10 @@
     }
     sync();
     bindMedia();
-    if (route.page === "discover") mountRibbon();
+    if (route.page === "discover") {
+      mountRibbon();
+      observeReveals();
+    }
     layout();
     const scenes = main2.querySelector(".scene-switch");
     updateStickyOffsets();
@@ -1114,6 +1117,13 @@
       sync();
       pulse(document.querySelector(`[data-save="${CSS.escape(id)}"]`) || button);
       pulse($("#save-count"));
+      return;
+    }
+    if (button.id === "back-to-top") {
+      scrollTo({
+        top: 0,
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"
+      });
       return;
     }
     if (button.dataset.media) {
@@ -1293,6 +1303,58 @@
     layout();
     updateStickyOffsets();
   });
+  var revealObserver;
+  function observeReveals() {
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const targets = $$(
+      ".curated-card, .quick-task-list a, .task-grid .case-card"
+    );
+    if (reduced || !("IntersectionObserver" in window)) {
+      targets.forEach((el) => el.classList.add("is-revealed"));
+      return;
+    }
+    revealObserver?.disconnect();
+    let batch = 0;
+    revealObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target;
+          if (!el.classList.contains("is-revealed")) {
+            const delay = Math.min(batch, 8) * 28;
+            batch++;
+            el.style.setProperty("--reveal-delay", delay + "ms");
+            el.classList.add("is-revealed");
+          }
+          revealObserver?.unobserve(el);
+        }
+        queueMicrotask(() => {
+          batch = 0;
+        });
+      },
+      { rootMargin: "40px 0px -20px 0px", threshold: 0.02 }
+    );
+    targets.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < innerHeight && rect.bottom > 0) {
+        el.classList.add("is-revealed");
+      } else if (!el.classList.contains("is-revealed")) {
+        revealObserver.observe(el);
+      }
+    });
+  }
+  var backToTopBtn = document.createElement("button");
+  backToTopBtn.id = "back-to-top";
+  backToTopBtn.type = "button";
+  backToTopBtn.className = "back-to-top";
+  backToTopBtn.setAttribute("aria-label", "回到顶部");
+  backToTopBtn.innerHTML = "↑ 顶部";
+  document.body.appendChild(backToTopBtn);
+  var syncBackToTop = () => {
+    backToTopBtn.classList.toggle("show", scrollY > 640);
+  };
+  window.addEventListener("scroll", syncBackToTop, { passive: true });
+  syncBackToTop();
   if (!location.hash) history.replaceState(null, "", location.href + "#discover");
   var storedTheme = null;
   try {
