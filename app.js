@@ -95,17 +95,70 @@
       video.querySelector("source")?.addEventListener("error", failed);
     });
   }
+  var stageSwitchTimer;
+  function clearStaleLayers(stage, keep) {
+    for (const child of [...stage.children]) {
+      if (child !== keep) child.remove();
+    }
+    stage.classList.remove("is-switching");
+  }
   function openWebPreview(c) {
     if (!c.preview) return;
-    $("#detail-visual").innerHTML = '<iframe src="' + safe(c.preview) + '" title="' + esc(c.title) + '交互预览" sandbox="allow-scripts allow-forms allow-downloads"></iframe>';
+    const stage = $("#detail-visual");
+    clearTimeout(stageSwitchTimer);
+    const iframe = document.createElement("iframe");
+    iframe.src = safe(c.preview);
+    iframe.title = c.title + "交互预览";
+    iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-downloads");
+    iframe.className = "stage-layer is-entering";
+    stage.classList.add("is-switching");
+    stage.appendChild(iframe);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      requestAnimationFrame(() => {
+        iframe.classList.remove("is-entering");
+        stageSwitchTimer = window.setTimeout(
+          () => clearStaleLayers(stage, iframe),
+          240
+        );
+      });
+    };
+    iframe.addEventListener("load", finish, { once: true });
+    stageSwitchTimer = window.setTimeout(finish, 900);
   }
   function toggleMotionPreview(c, button) {
     if (!c.motion_preview) return;
     const on = button.getAttribute("aria-pressed") === "true";
-    $("#detail-visual").innerHTML = '<img src="' + safe(on ? c.cover : c.motion_preview) + '" alt="' + esc(on ? "作者输入图" : "官方动态输出示例") + '">';
+    const stage = $("#detail-visual");
+    clearTimeout(stageSwitchTimer);
+    const img = document.createElement("img");
+    img.src = safe(on ? c.cover : c.motion_preview);
+    img.alt = on ? "作者输入图" : "官方动态输出示例";
+    img.referrerPolicy = "no-referrer";
+    img.className = "stage-layer is-entering";
+    stage.classList.add("is-switching");
+    stage.appendChild(img);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      requestAnimationFrame(() => {
+        img.classList.remove("is-entering");
+        stageSwitchTimer = window.setTimeout(
+          () => clearStaleLayers(stage, img),
+          240
+        );
+      });
+    };
+    if (img.complete && img.naturalWidth > 0) finish();
+    else {
+      img.addEventListener("load", finish, { once: true });
+      img.addEventListener("error", finish, { once: true });
+    }
     button.setAttribute("aria-pressed", String(!on));
     button.textContent = on ? "播放官方动态 WEBP 预览 ▶" : "停止动态预览 ■";
-    bindMedia();
   }
 
   // src/domain/tasks.ts
@@ -255,10 +308,14 @@
     pen: '<path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14zM4 14l5 5"/>',
     layers: '<path d="m12 3 10 5-10 5L2 8zm-10 9 10 5 10-5M2 17l10 5 10-5"/>',
     search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
-    arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>'
+    arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+    bookmark: '<path d="M6 3h12v18l-6-4-6 4z"/>',
+    bookmarkFilled: '<path d="M6 3h12v18l-6-4-6 4z" fill="currentColor"/>',
+    copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>'
   };
   function icon(name) {
-    return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
+    return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
   }
 
   // src/ui/discovery.ts
@@ -324,8 +381,10 @@
       searchForm.className = nextSearchForm.className;
     const clearSearch = main3.querySelector("#clear-search");
     const nextClearSearch = next.querySelector("#clear-search");
-    if (clearSearch && nextClearSearch)
-      clearSearch.hidden = nextClearSearch.hidden;
+    if (clearSearch && nextClearSearch) {
+      clearSearch.className = nextClearSearch.className;
+      clearSearch.tabIndex = nextClearSearch.tabIndex;
+    }
     const openFilters = main3.querySelector("#open-filters");
     const nextOpenFilters = next.querySelector("#open-filters");
     if (openFilters && nextOpenFilters) {
@@ -377,8 +436,8 @@
   var names = {
     all: "全部",
     image: "图片",
-    motion: "视频·动效",
-    web: "网页·交互"
+    motion: "视频动效",
+    web: "网页交互"
   };
   var accessNames = {
     skill: "有原 Skill",
@@ -450,7 +509,7 @@
     ).join("");
   }
   function card(c, index = 0) {
-    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false">+</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? external(c.source_url, c.author + " ↗") : esc(c.author)) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><span class="case-status">' + esc(
+    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false" aria-label="收藏：' + esc(c.title) + '">' + icon("bookmark") + '</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? external(c.source_url, c.author + " ↗") : esc(c.author)) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><span class="case-status">' + esc(
       {
         author_example: "作者示例 · 未复跑",
         files_complete: "资料齐备 · 未复跑",
@@ -522,7 +581,7 @@
         <a class="task-option ${route2.task === "all" ? "selected" : ""}" href="${esc(taskLink("all"))}" ${route2.task === "all" ? 'aria-current="page"' : ""}>${icon("grid")}<span>全部任务</span></a>
         ${["campus", "creative", "enterprise"].map((group) => {
       const groupTasks = availableTasks.filter((t) => t.group === group);
-      return groupTasks.length ? `<div class="task-group-label">${{ campus: "校园创作", creative: "AI 创作工作流", enterprise: "AI 企业工作流" }[group]}</div>${groupTasks.map((t) => `<a class="task-option ${route2.task === t.id ? "selected" : ""}" href="${esc(taskLink(t.id))}" ${route2.task === t.id ? 'aria-current="page"' : ""}>${icon(t.icon)}<span>${t.label}</span><small>${countFor(t.id) || "筹备"}</small></a>`).join("")}` : "";
+      return groupTasks.length ? `<div class="task-group-label">${{ campus: "校园创作", creative: "AI 创作工作流", enterprise: "AI 企业工作流" }[group]}</div>${groupTasks.map((t) => `<a class="task-option ${route2.task === t.id ? "selected" : ""}" href="${esc(taskLink(route2.task === t.id ? "all" : t.id))}" ${route2.task === t.id ? 'aria-current="page"' : ""}>${icon(t.icon)}<span>${t.label}</span><small>${countFor(t.id) || "筹备"}</small></a>`).join("")}` : "";
     }).join("")}
         <div class="sidebar-note">先看成品，再看资料。<br>同一案例可适合多种任务。</div>
       </aside>
@@ -530,7 +589,7 @@
         <div class="result-intro">
         <div class="result-heading"><div><div class="eyebrow">${esc(audienceNames[route2.audience] || "全部场景")} / ${task ? "任务专题" : "案例精选"}</div><h2>${task ? esc(task.label) : "为下一次创作，找到起点"}</h2></div><span class="result-count">${list.length} 个案例</span></div>
         ${task ? `<p class="task-description">${esc(task.description)}</p><div class="task-boundary">${esc(task.boundary)}</div>` : '<p class="task-description">按用途挑选，按来源取用。任务标签为编辑建议，具体交付请查看详情。</p>'}
-        </div><div class="discovery-controls"><form class="search ${route2.q ? "has-value" : ""}" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果或作者" value="${esc(route2.q)}"><button type="button" id="clear-search" class="search-clear" aria-label="清除搜索" ${route2.q ? "" : "hidden"}>×</button><button type="submit" aria-label="搜索">${icon("arrow")}</button></form><button id="open-filters" class="filter-button ${filters.filter((k) => k !== "q").length ? "has-active" : ""}">工具与资料筛选${filters.filter((k) => k !== "q").length ? ` <span class="filter-badge">${filters.filter((k) => k !== "q").length}</span>` : ""}</button></div>
+        </div><div class="discovery-controls"><form class="search ${route2.q ? "has-value" : ""}" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果或作者（按 / 快速定位）" value="${esc(route2.q)}"><button type="button" id="clear-search" class="search-clear ${route2.q ? "is-visible" : ""}" aria-label="清除搜索" tabindex="${route2.q ? "0" : "-1"}">×</button></form><button id="open-filters" class="filter-button ${filters.filter((k) => k !== "q").length ? "has-active" : ""}">工具与资料筛选${filters.filter((k) => k !== "q").length ? ` <span class="filter-badge">${filters.filter((k) => k !== "q").length}</span>` : ""}</button></div>
         <div class="toolbar"><div class="tabs" aria-label="按媒介筛选">${Object.entries(
       names
     ).map(
@@ -551,23 +610,28 @@
   function detail(route2, lastDiscover2) {
     const c = cases.find((c2) => c2.id === route2.id);
     if (!c) return missing();
+    const visible = cases.filter((item) => !item.archived);
+    const idx = visible.findIndex((item) => item.id === c.id);
+    const prevCase = idx > 0 ? visible[idx - 1] : void 0;
+    const nextCase = idx >= 0 && idx < visible.length - 1 ? visible[idx + 1] : void 0;
+    const copyBtn = (value, label) => `<button type="button" class="copy-btn" data-copy="${esc(value)}" aria-label="${esc(label)}" title="${esc(label)}">${icon("copy")}<span>复制</span></button>`;
     const out = c.origin === "external";
     let action = c.archived ? '<a class="primary" href="#discover?media=' + c.media + '">查看有来源的新案例 ↗</a>' : out ? external(c.primary_url, c.primary_label, "primary") : '<a class="primary" href="' + safe(c.preview) + '" download="' + c.id + '-example.html">获取网页示例代码 ↓</a>';
-    main.innerHTML = '<div class="crumb"><a href="' + esc(lastDiscover2) + '">← 返回画廊</a><span>/</span><span>' + names[c.media] + "</span><span>/</span><span>" + esc(c.tag) + "</span></div>" + (c.archived ? '<p class="archive-notice">这项旧布局参考已移出精选。它没有可追溯的原始制作链，原来的画面拆解已撤下。</p>' : "") + '<section class="detail-grid"><div><div class="detail-visual" id="detail-visual">' + preview(c) + "</div>" + (c.motion_preview ? '<button id="load-motion" class="preview-open" aria-pressed="false">播放官方动态 WEBP 预览 ▶</button>' : c.preview ? '<button class="preview-open" id="launch-preview">打开网页交互预览 ↗</button>' : "") + '<div class="visual-caption"><span>' + esc(c.cover_role) + "</span><span>" + esc(c.author) + '</span></div></div><div class="detail-info"><div class="eyebrow">' + names[c.media] + " / " + esc(c.tag) + "</div><h1>" + esc(c.title) + '</h1><div class="detail-task-links">' + c.task_ids.map(
+    main.innerHTML = '<div class="crumb"><a href="' + esc(lastDiscover2) + '">← 返回画廊</a><span>/</span><span>' + names[c.media] + "</span><span>/</span><span>" + esc(c.tag) + "</span>" + (prevCase || nextCase ? '<span class="crumb-nav">' + (prevCase ? `<a href="#effect/${prevCase.id}" data-prev-case title="上一个案例（←）：${esc(prevCase.title)}">← 上一个</a>` : "") + (nextCase ? `<a href="#effect/${nextCase.id}" data-next-case title="下一个案例（→）：${esc(nextCase.title)}">下一个 →</a>` : "") + "</span>" : "") + "</div>" + (c.archived ? '<p class="archive-notice">这项旧布局参考已移出精选。它没有可追溯的原始制作链，原来的画面拆解已撤下。</p>' : "") + '<section class="detail-grid"><div><div class="detail-visual" id="detail-visual">' + preview(c) + "</div>" + (c.motion_preview ? '<button id="load-motion" class="preview-open" aria-pressed="false">播放官方动态 WEBP 预览 ▶</button>' : c.preview ? '<button class="preview-open" id="launch-preview">打开网页交互预览 ↗</button>' : "") + '<div class="visual-caption"><span>' + esc(c.cover_role) + "</span><span>" + esc(c.author) + '</span></div></div><div class="detail-info"><div class="eyebrow">' + names[c.media] + " / " + esc(c.tag) + "</div><h1>" + esc(c.title) + '</h1><div class="detail-task-links">' + c.task_ids.map(
       (id) => `<a href="#discover?task=${id}">${esc(findTask(id)?.label || id)}</a>`
-    ).join("") + '</div><span class="badge">' + esc(c.verification) + '</span><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>来源</dt><dd>' + (out ? external(c.source_url, c.author + " ↗") : esc(c.author)) + "</dd></div><div><dt>能取得</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>需要准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>当前缺口</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>使用范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary" data-save="' + c.id + '">收藏 +</button></div><p class="action-note">' + (out ? "打开作者原始资料；当前页面不会安装 Skill 或调用生成服务。" : c.archived ? "保留旧链接，不再用拆解文字替代制作文件。" : "下载独立 HTML 后，可用浏览器打开。部分示例也支持在线预览。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "作者实际提供的制作资料" : "本地示例文件") + "</h2>" + (out ? c.resources.map(
-      (r, i) => '<div class="resource-row"><span>' + String(i + 1).padStart(2, "0") + "</span><div>" + external(r.url, r.label + " ↗") + "<small>" + esc(new URL(r.url).hostname) + " · " + esc(r.type) + "</small></div></div>"
+    ).join("") + '</div><span class="badge">' + esc(c.verification) + '</span><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>来源</dt><dd class="spec-with-copy">' + (out ? external(c.source_url, c.author + " ↗") + copyBtn(c.source_url, "复制来源链接") : esc(c.author)) + "</dd></div><div><dt>能取得</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>需要准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>当前缺口</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>使用范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary detail-save" data-save="' + c.id + '">' + icon("bookmark") + '<span>收藏</span></button></div><p class="action-note">' + (out ? "打开作者原始资料；当前页面不会安装 Skill 或调用生成服务。" : c.archived ? "保留旧链接，不再用拆解文字替代制作文件。" : "下载独立 HTML 后，可用浏览器打开。部分示例也支持在线预览。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "作者实际提供的制作资料" : "本地示例文件") + "</h2>" + (out ? c.resources.map(
+      (r, i) => '<div class="resource-row"><span>' + String(i + 1).padStart(2, "0") + "</span><div>" + external(r.url, r.label + " ↗") + "<small>" + esc(new URL(r.url).hostname) + " · " + esc(r.type) + "</small></div>" + copyBtn(r.url, "复制 " + r.label + " 链接") + "</div>"
     ).join("") : c.preview ? '<div class="resource-row"><span>01</span><div><a href="' + safe(c.preview) + '" download>独立 HTML 示例 ↓</a><small>本地界面研究，尚未验证跨项目接入</small></div></div>' : '<p class="muted">没有对应的原始工程或配方，已停止提供泛化拆解。</p>') + (!out && c.steps?.length ? '<h2 class="section-title example-steps-title">如何开始</h2>' + c.steps.map(
       (step, index) => '<div class="step"><span>' + String(index + 1).padStart(2, "0") + "</span><p>" + esc(step) + "</p></div>"
-    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span>02</span><div><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的示例 ↗</a><small>由本站实际编辑并导出的 HTML，可继续编辑</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><span>原配置选项</span><code>' + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>文件齐不齐，能否做同款？</h3><p class="completeness">' + esc(c.completeness) + "</p>" + (out ? "<h3>关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details><summary>来源、版本与使用范围</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始记录 ↗") + "</p><p>采集 " + collectedDate + " · 仓库版本 " + esc(c.source_commit.slice(0, 12)) + "</p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "仓库许可证 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出案例资料 ↓</button>' : "") + "</aside></section>";
+    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span>02</span><div><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的示例 ↗</a><small>由本站实际编辑并导出的 HTML，可继续编辑</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><div class="config-head"><span>原配置选项</span>' + copyBtn(JSON.stringify(c.configuration, null, 2), "复制配置 JSON") + "</div><code>" + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>文件齐不齐，能否做同款？</h3><p class="completeness">' + esc(c.completeness) + "</p>" + (out ? "<h3>关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details><summary>来源、版本与使用范围</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始记录 ↗") + "</p><p>采集 " + collectedDate + " · 仓库版本 " + esc(c.source_commit.slice(0, 12)) + "</p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "仓库许可证 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出案例资料 ↓</button>' : "") + "</aside></section>";
   }
   function savedPage(saved2, storageAvailable2) {
     const ids = Object.keys(saved2);
-    main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR COLLECTION, WITH ITS SOURCES</div><h1>好作品，有据可循。</h1><p>收藏会同时保留作者、原文件链接与备注。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续发现 ↗</a><button class="primary" id="export-saved" ' + (!ids.length ? "disabled" : "") + '>导出清单 ↓</button></div></section><div class="board-name"><span>我的收藏 / ' + ids.length + '</span><span>仅保存在本浏览器</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
+    main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR COLLECTION, WITH ITS SOURCES</div><h1>好作品，有据可循。</h1><p>收藏会同时保留作者、原文件链接与备注。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续发现 ↗</a>' + (ids.length ? '<button class="primary" id="export-saved">导出清单 ↓</button>' : "") + '</div></section><div class="board-name"><span>我的收藏 / ' + ids.length + '</span><span>仅保存在本浏览器</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
       const c = cases.find((c2) => c2.id === id);
       if (!c) return "";
-      return '<article class="saved-item"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + c.delivery) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="想用在什么项目？">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
-    }).join("") : '<div class="empty-state"><h2>收藏下一次想用的作品</h2><p>在画廊点“+”，把来源与文件链接一起保存。</p><a href="#discover" class="primary">去发现 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>浏览器未允许持久保存，请导出清单。</p>" : "");
+      return '<article class="saved-item" data-saved-item="' + id + '"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + c.delivery) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="想用在什么项目？">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
+    }).join("") : '<div class="empty-state"><h2>收藏下一次想用的作品</h2><p>在画廊点右上角书签，把来源与文件链接一起保存。</p><a href="#discover" class="primary">去发现 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>浏览器未允许持久保存，请导出清单。</p>" : "");
   }
   function methods() {
     main.innerHTML = '<section class="methods-intro"><div class="eyebrow">SKILLS & WORKFLOWS</div><h1>每个工具，都连着作品。</h1><p>这里收录实际找到文件的 ' + stats.skills + " 个 Skill 与 " + stats.workflows + " 个官方工作流。查看原文件和关联案例；尚未在本站安装或复跑。</p></section>" + skills.map(
@@ -737,7 +801,9 @@
       gl.uniform1f(aspectLoc, rect.width / Math.max(rect.height, 1));
       requestDraw();
     }
-    function updateScroll() {
+    let scrollRaf = 0;
+    function updateScrollNow() {
+      scrollRaf = 0;
       const r = scene.getBoundingClientRect(), travel = Math.max(
         1,
         scene.offsetHeight - (canvas.parentElement?.clientHeight || innerHeight)
@@ -745,6 +811,9 @@
       progress = motion.matches ? 0 : Math.max(0, Math.min(1, -r.top / travel));
       scene.style.setProperty("--hero-progress", String(progress));
       requestDraw();
+    }
+    function updateScroll() {
+      if (!scrollRaf) scrollRaf = requestAnimationFrame(updateScrollNow);
     }
     function draw(now) {
       frame = 0;
@@ -829,6 +898,7 @@
       destroy: () => {
         disposed = true;
         cancelAnimationFrame(frame);
+        cancelAnimationFrame(scrollRaf);
         intersection.disconnect();
         ro.disconnect();
         scene.removeEventListener("pointermove", move);
@@ -897,7 +967,10 @@
   var scrolls = {};
   var undoAction;
   var searchDebounce;
-  function notify(text, onUndo) {
+  var noteFadeTimers = /* @__PURE__ */ new WeakMap();
+  var copyResetTimers = /* @__PURE__ */ new WeakMap();
+  var prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function notify(text, onUndo, durationMs) {
     const toast = $("#toast");
     undoAction = onUndo;
     if (onUndo) {
@@ -925,33 +998,89 @@
         toast.classList.remove("show");
         undoAction = void 0;
       },
-      onUndo ? 4200 : 2600
+      durationMs ?? (onUndo ? 4200 : 2400)
     );
   }
   function pulse(el) {
-    if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    el.classList.remove("is-popping");
-    void el.offsetWidth;
-    el.classList.add("is-popping");
+    if (!el || prefersReduced() || typeof el.animate !== "function") return;
+    for (const anim of el.getAnimations()) anim.cancel();
+    el.animate(
+      [
+        { transform: "scale(0.86)" },
+        { transform: "scale(1.12)", offset: 0.55 },
+        { transform: "scale(1)" }
+      ],
+      { duration: 260, easing: "cubic-bezier(0.34, 1.56, 0.64, 1)" }
+    );
+  }
+  async function copyText(text, button) {
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch {
+    }
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText = "position:fixed;left:-9999px;opacity:0";
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand("copy");
+        ta.remove();
+      } catch {
+      }
+    }
+    if (!ok) {
+      notify("复制失败，请手动选中复制");
+      return;
+    }
+    button.classList.add("is-copied");
+    button.innerHTML = icon("check") + "<span>已复制</span>";
+    pulse(button);
+    notify("已复制到剪贴板");
+    clearTimeout(copyResetTimers.get(button));
+    copyResetTimers.set(
+      button,
+      window.setTimeout(() => {
+        button.classList.remove("is-copied");
+        button.innerHTML = icon("copy") + "<span>复制</span>";
+      }, 1600)
+    );
   }
   function persist() {
     storageAvailable = saveCollection(browserStorage, saved);
     if (!storageAvailable) notify("无法保存到浏览器，请导出清单");
   }
   function sync() {
-    $("#save-count").textContent = String(Object.keys(saved).length);
+    const count = Object.keys(saved).length;
+    const badge = $("#save-count");
+    badge.textContent = String(count);
+    badge.dataset.empty = count === 0 ? "true" : "false";
     $$("[data-save]").forEach((button) => {
       const c = cases.find((c2) => c2.id === button.dataset.save);
       if (!c) return;
       const on = !!saved[c.id];
       button.setAttribute("aria-pressed", String(on));
-      button.textContent = button.classList.contains("card-save") ? on ? "✓" : "+" : button.classList.contains("remove-save") ? "移出收藏" : on ? "已收藏 ✓" : "收藏 +";
-      button.setAttribute("aria-label", (on ? "取消收藏：" : "收藏：") + c.title);
+      if (button.classList.contains("card-save")) {
+        button.innerHTML = icon(on ? "bookmarkFilled" : "bookmark");
+      } else if (button.classList.contains("remove-save")) {
+        button.textContent = "移出收藏";
+      } else {
+        button.innerHTML = icon(on ? "bookmarkFilled" : "bookmark") + `<span>${on ? "已收藏" : "收藏"}</span>`;
+      }
+      button.setAttribute(
+        "aria-label",
+        (on ? "取消收藏：" : "收藏：") + c.title
+      );
     });
   }
-  function setTheme(value, animate = false) {
+  function setTheme(value, animate = false, manual = false) {
     const theme = ["light", "dark"].includes(value) ? value : "light";
-    if (animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (animate && !prefersReduced()) {
       document.documentElement.classList.add("theme-animating");
       window.setTimeout(
         () => document.documentElement.classList.remove("theme-animating"),
@@ -959,9 +1088,14 @@
       );
     }
     document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem("jixian-theme", theme);
-    } catch {
+    if (manual) {
+      try {
+        localStorage.setItem("jixian-theme", theme);
+      } catch {
+      }
+      const url = new URL(location.href);
+      url.searchParams.set("theme", theme);
+      history.replaceState(null, "", url);
     }
     $$("[data-theme-choice]").forEach(
       (button) => button.setAttribute(
@@ -969,9 +1103,6 @@
         String(button.dataset.themeChoice === theme)
       )
     );
-    const url = new URL(location.href);
-    url.searchParams.set("theme", theme);
-    history.replaceState(null, "", url);
     requestAnimationFrame(layout);
   }
   function updateStickyOffsets() {
@@ -1009,7 +1140,7 @@
     else if (route.page === "saved") savedPage(saved, storageAvailable);
     else if (route.page === "methods") methods();
     else missing();
-    if (!filtering && mode !== "initial" && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!filtering && mode !== "initial" && !prefersReduced()) {
       main2.classList.remove("page-enter");
       void main2.offsetWidth;
       main2.classList.add("page-enter");
@@ -1025,22 +1156,29 @@
     updateStickyOffsets();
     if (filtering && mode !== "history") {
       const results = main2.querySelector(".results-area");
-      const mobileBar = innerWidth <= 700 ? 66 : 0;
-      const target = Math.min(
-        previousY,
-        Math.max(
-          0,
-          results.getBoundingClientRect().top + scrollY - (scenes?.offsetHeight || 0) - mobileBar - 18
-        )
-      );
-      if (Math.abs(target - scrollY) > 1)
-        scrollTo({
-          top: target,
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"
-        });
+      const activeEl = document.activeElement;
+      const isTypingSearch = activeEl instanceof HTMLInputElement && activeEl.name === "q";
+      if (results && !isTypingSearch) {
+        const rect = results.getBoundingClientRect();
+        const sceneH = scenes?.offsetHeight || 0;
+        const mobileBar = innerWidth <= 700 ? 54 : 0;
+        const alreadyInView = rect.top >= sceneH - 12 && rect.top <= innerHeight * 0.55;
+        if (!alreadyInView) {
+          const target = Math.min(
+            previousY,
+            Math.max(0, rect.top + scrollY - sceneH - mobileBar - 16)
+          );
+          if (Math.abs(target - scrollY) > 12) {
+            scrollTo({
+              top: target,
+              behavior: prefersReduced() ? "instant" : "smooth"
+            });
+          }
+        }
+      }
       releaseTimer = window.setTimeout(() => {
         main2.style.minHeight = "";
-      }, 1e3);
+      }, 420);
     } else {
       main2.style.minHeight = "";
       scrollTo({
@@ -1058,6 +1196,10 @@
   }
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
+    if (event.target instanceof HTMLDialogElement && event.target.open) {
+      event.target.close();
+      return;
+    }
     const anchor = event.target.closest('a[href^="#"]');
     if (anchor && anchor.hash !== "#main" && !anchor.target && !anchor.hasAttribute("download") && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
       event.preventDefault();
@@ -1066,15 +1208,19 @@
     }
     const button = event.target.closest("button");
     if (!button) return;
+    if (button.dataset.copy !== void 0) {
+      void copyText(button.dataset.copy, button);
+      return;
+    }
     if (button.id === "explore-gallery") {
       main2.querySelector(".quick-tasks")?.scrollIntoView({
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        behavior: prefersReduced() ? "instant" : "smooth",
         block: "start"
       });
       return;
     }
     if (button.dataset.themeChoice) {
-      setTheme(button.dataset.themeChoice, true);
+      setTheme(button.dataset.themeChoice, true, true);
       return;
     }
     if (button.id === "clear-search") {
@@ -1085,7 +1231,8 @@
         input.focus();
       }
       form?.classList.remove("has-value");
-      button.hidden = true;
+      button.classList.remove("is-visible");
+      button.tabIndex = -1;
       clearTimeout(searchDebounce);
       if (route.q) navigate(discoverUrl(route, { q: "" }));
       return;
@@ -1095,39 +1242,70 @@
       if (!cases.some((c2) => c2.id === id)) return;
       if (saved[id]) {
         const removed = saved[id];
-        delete saved[id];
-        notify("已移出收藏", () => {
-          saved[id] = removed;
+        const hasNote = !!removed.note?.trim();
+        const finishRemove = () => {
+          delete saved[id];
           persist();
+          notify(
+            hasNote ? "已移出收藏（含备注）" : "已移出收藏",
+            () => {
+              saved[id] = removed;
+              persist();
+              if (route.page === "saved") {
+                savedPage(saved, storageAvailable);
+                bindMedia();
+              }
+              sync();
+              pulse($("#save-count"));
+            },
+            hasNote ? 6e3 : 4200
+          );
           if (route.page === "saved") {
             savedPage(saved, storageAvailable);
             bindMedia();
           }
           sync();
-        });
+          pulse(
+            document.querySelector(`[data-save="${CSS.escape(id)}"]`) || button
+          );
+          pulse($("#save-count"));
+        };
+        if (route.page === "saved" && !prefersReduced()) {
+          const card2 = button.closest(".saved-item");
+          if (card2 && !card2.classList.contains("is-removing")) {
+            card2.classList.add("is-removing");
+            window.setTimeout(finishRemove, 180);
+            return;
+          }
+        }
+        finishRemove();
+        return;
       } else {
         saved[id] = { note: "", savedAt: (/* @__PURE__ */ new Date()).toISOString() };
-        notify("已收藏作品与来源");
+        notify("已加入收藏");
+        persist();
+        if (route.page === "saved") {
+          savedPage(saved, storageAvailable);
+          bindMedia();
+        }
+        sync();
+        pulse(
+          document.querySelector(`[data-save="${CSS.escape(id)}"]`) || button
+        );
+        pulse($("#save-count"));
+        return;
       }
-      persist();
-      if (route.page === "saved") {
-        savedPage(saved, storageAvailable);
-        bindMedia();
-      }
-      sync();
-      pulse(document.querySelector(`[data-save="${CSS.escape(id)}"]`) || button);
-      pulse($("#save-count"));
-      return;
     }
     if (button.id === "back-to-top") {
       scrollTo({
         top: 0,
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"
+        behavior: prefersReduced() ? "instant" : "smooth"
       });
       return;
     }
     if (button.dataset.media) {
-      navigate(discoverUrl(route, { media: button.dataset.media }));
+      const nextMedia = route.media === button.dataset.media && button.dataset.media !== "all" ? "all" : button.dataset.media;
+      navigate(discoverUrl(route, { media: nextMedia }));
       return;
     }
     if (button.dataset.audience) {
@@ -1146,7 +1324,9 @@
     if (button.dataset.clear) {
       const key = button.dataset.clear;
       if (key === "all") {
+        const prevHash = location.hash;
         navigate(discoverUrl(route, { q: "", tool: "all", access: "all" }));
+        notify("已清除筛选条件", () => navigate(prevHash));
         return;
       }
       if (key === "q" || key === "tool" || key === "access")
@@ -1163,9 +1343,15 @@
     }
     if (button.id === "open-filters") {
       const form = $("#filter-form");
-      $("[name=tool]", form).value = route.tool;
-      $("[name=access]", form).value = route.access;
+      const toolSelect = $("[name=tool]", form);
+      const accessSelect = $("[name=access]", form);
+      toolSelect.value = route.tool;
+      accessSelect.value = route.access;
+      const clearAdv = form.querySelector("#clear-advanced");
+      if (clearAdv)
+        clearAdv.hidden = route.tool === "all" && route.access === "all";
       $("#filter-dialog").showModal();
+      toolSelect.focus();
       return;
     }
     if (button.id === "clear-advanced") {
@@ -1173,8 +1359,9 @@
       form.reset();
       $("#filter-dialog").close();
       if (route.tool !== "all" || route.access !== "all") {
+        const prevHash = location.hash;
         navigate(discoverUrl(route, { tool: "all", access: "all" }));
-        notify("已重置工具与资料筛选");
+        notify("已重置工具与资料筛选", () => navigate(prevHash));
       }
       return;
     }
@@ -1193,6 +1380,7 @@
         exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
         ...record(c)
       });
+      notify("已导出案例资料");
       return;
     }
     if (button.id === "export-saved") {
@@ -1238,7 +1426,10 @@
       const clearBtn = form?.querySelector("#clear-search");
       const hasVal = input.value.length > 0;
       form?.classList.toggle("has-value", hasVal);
-      if (clearBtn) clearBtn.hidden = !hasVal;
+      if (clearBtn) {
+        clearBtn.classList.toggle("is-visible", hasVal);
+        clearBtn.tabIndex = hasVal ? 0 : -1;
+      }
       clearTimeout(searchDebounce);
       searchDebounce = window.setTimeout(() => {
         const nextHash = discoverUrl(route, { q: input.value.trim() });
@@ -1246,7 +1437,7 @@
           history.replaceState(null, "", nextHash);
           render();
         }
-      }, 260);
+      }, 240);
       return;
     }
     if (!(input instanceof HTMLTextAreaElement)) return;
@@ -1259,6 +1450,11 @@
       if (status) {
         status.textContent = "已自动保存";
         status.classList.add("on");
+        clearTimeout(noteFadeTimers.get(status));
+        noteFadeTimers.set(
+          status,
+          window.setTimeout(() => status.classList.remove("on"), 1800)
+        );
       }
     }
   });
@@ -1271,17 +1467,41 @@
     }
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement) && !(event.target instanceof HTMLSelectElement) && !document.querySelector("dialog[open]")) {
+    const inEditable = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
+    const hasDialog = !!document.querySelector("dialog[open]");
+    if ((event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey || event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) && !inEditable && !hasDialog) {
       const searchInput = main2.querySelector("input[name=q]");
       if (searchInput) {
         event.preventDefault();
         searchInput.focus();
         searchInput.select();
       }
-    } else if (event.key === "Escape") {
+      return;
+    }
+    if (event.key === "Escape") {
       $$(".hero-controls details[open]").forEach((d) => {
         d.open = false;
       });
+      if (event.target instanceof HTMLInputElement && event.target.name === "q" && event.target.value) {
+        const clearBtn = main2.querySelector("#clear-search");
+        clearBtn?.click();
+      }
+      return;
+    }
+    if (route.page === "effect" && !inEditable && !hasDialog && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key === "ArrowLeft") {
+        const prev = main2.querySelector("[data-prev-case]");
+        if (prev) {
+          event.preventDefault();
+          navigate(prev.hash);
+        }
+      } else if (event.key === "ArrowRight") {
+        const next = main2.querySelector("[data-next-case]");
+        if (next) {
+          event.preventDefault();
+          navigate(next.hash);
+        }
+      }
     }
   });
   document.addEventListener(
@@ -1305,11 +1525,10 @@
   });
   var revealObserver;
   function observeReveals() {
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const targets = $$(
       ".curated-card, .quick-task-list a, .task-grid .case-card"
     );
-    if (reduced || !("IntersectionObserver" in window)) {
+    if (prefersReduced() || !("IntersectionObserver" in window)) {
       targets.forEach((el) => el.classList.add("is-revealed"));
       return;
     }
@@ -1321,7 +1540,7 @@
           if (!entry.isIntersecting) continue;
           const el = entry.target;
           if (!el.classList.contains("is-revealed")) {
-            const delay = Math.min(batch, 8) * 28;
+            const delay = Math.min(batch, 6) * 24;
             batch++;
             el.style.setProperty("--reveal-delay", delay + "ms");
             el.classList.add("is-revealed");
@@ -1332,16 +1551,18 @@
           batch = 0;
         });
       },
-      { rootMargin: "40px 0px -20px 0px", threshold: 0.02 }
+      { rootMargin: "40px 0px -16px 0px", threshold: 0.02 }
     );
-    targets.forEach((el) => {
+    const inView = [];
+    const offView = [];
+    for (const el of targets) {
+      if (el.classList.contains("is-revealed")) continue;
       const rect = el.getBoundingClientRect();
-      if (rect.top < innerHeight && rect.bottom > 0) {
-        el.classList.add("is-revealed");
-      } else if (!el.classList.contains("is-revealed")) {
-        revealObserver.observe(el);
-      }
-    });
+      if (rect.top < innerHeight && rect.bottom > 0) inView.push(el);
+      else offView.push(el);
+    }
+    for (const el of inView) el.classList.add("is-revealed");
+    for (const el of offView) revealObserver.observe(el);
   }
   var backToTopBtn = document.createElement("button");
   backToTopBtn.id = "back-to-top";
@@ -1361,7 +1582,19 @@
     storedTheme = localStorage.getItem("jixian-theme");
   } catch {
   }
-  var initialTheme = new URLSearchParams(location.search).get("theme") || storedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  setTheme(initialTheme);
+  var urlTheme = new URLSearchParams(location.search).get("theme");
+  var darkMedia = matchMedia("(prefers-color-scheme: dark)");
+  var initialTheme = urlTheme || storedTheme || (darkMedia.matches ? "dark" : "light");
+  setTheme(initialTheme, false, false);
+  darkMedia.addEventListener("change", (e) => {
+    let savedChoice = null;
+    try {
+      savedChoice = localStorage.getItem("jixian-theme");
+    } catch {
+    }
+    if (!savedChoice && !new URLSearchParams(location.search).get("theme")) {
+      setTheme(e.matches ? "dark" : "light", true, false);
+    }
+  });
   render("initial");
 })();
