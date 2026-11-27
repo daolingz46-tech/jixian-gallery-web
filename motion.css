@@ -1,0 +1,625 @@
+/* Unified Apple-grade motion language & UX polish (loaded last to own all transitions) */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-press: 110ms;
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --dur-slow: 320ms;
+}
+
+/* Complete theme transition without tearing */
+html.theme-animating body,
+html.theme-animating .header,
+html.theme-animating .review-bar,
+html.theme-animating .scene-switch,
+html.theme-animating .task-sidebar,
+html.theme-animating .discovery-controls,
+html.theme-animating .toolbar,
+html.theme-animating .curated-card,
+html.theme-animating .scene,
+html.theme-animating .source-box,
+html.theme-animating .case-card .cover,
+html.theme-animating .tabs button,
+html.theme-animating .filter-button,
+html.theme-animating .task-option,
+html.theme-animating .site-footer,
+html.theme-animating input,
+html.theme-animating dialog {
+  transition:
+    background-color var(--dur-base) var(--ease-in-out),
+    color var(--dur-base) var(--ease-in-out),
+    border-color var(--dur-base) var(--ease-in-out);
+}
+
+/* Tabular numbers prevent layout jitter on counter updates */
+#save-count,
+.result-count,
+.filter-badge,
+.task-option small {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quiet badge when empty */
+#save-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
+}
+#save-count[data-empty="true"] {
+  opacity: 0;
+  transform: scale(0.7);
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border-width: 0;
+  margin-left: -6px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Unified interactive transitions (override scattered legacy transitions) */
+button,
+a.primary,
+a.secondary,
+.quick-task-list a,
+.scene,
+.tabs button,
+.filter-button,
+.card-save,
+.active-filters button,
+.task-option,
+.saved-link,
+.copy-btn {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+/* Tactile press states */
+.primary:active,
+.secondary:active,
+.filter-button:active,
+.tabs button:active,
+.scene:active,
+.quick-task-list a:active,
+.active-filters button:active,
+.theme-choices button:active,
+.task-option:active,
+.saved-link:active,
+.copy-btn:active {
+  transform: scale(0.97);
+}
+.card-save:active {
+  transform: scale(0.88);
+}
+
+/* Bookmark icon save button + 44x44px touch target expansion */
+.card-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.card-save::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+.card-save .icon {
+  width: 14px;
+  height: 14px;
+}
+.card-save[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.detail-save .icon {
+  width: 16px;
+  height: 16px;
+}
+.detail-save[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--soft);
+}
+
+/* Dark mode card badges & save button refinements */
+:root[data-theme="dark"] .card-type {
+  background: rgba(20, 29, 25, 0.84);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] .card-save {
+  background: rgba(20, 29, 25, 0.84);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+:root[data-theme="dark"] .card-save[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Image fade-in + subtle shimmer skeleton while loading */
+.cover > img {
+  transition:
+    transform 420ms var(--ease-out),
+    opacity var(--dur-base) var(--ease-out);
+}
+.cover > img.is-loading,
+.task-grid .cover > img.is-loading {
+  opacity: 0;
+}
+@keyframes jx-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.cover:has(> img.is-loading) {
+  background: linear-gradient(
+    90deg,
+    var(--soft) 25%,
+    color-mix(in srgb, var(--line) 55%, var(--soft)) 50%,
+    var(--soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: jx-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Nav indicator */
+.header nav a {
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.header nav a:after {
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    opacity var(--dur-fast) var(--ease-out);
+  transform-origin: center;
+}
+
+/* Single crisp page entrance (no duplicate nested fade) */
+@keyframes jx-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+#main.page-enter {
+  animation: jx-page-enter var(--dur-base) var(--ease-out);
+}
+
+/* Smooth search clear button */
+.search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--soft);
+  flex-shrink: 0;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.search-clear.is-visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+/* Filter badge & active chips */
+.filter-button.has-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+.active-filters .clear-all {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+/* One-click copy button & detail layout helpers */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+.copy-btn .icon {
+  width: 13px;
+  height: 13px;
+}
+.copy-btn.is-copied {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--soft);
+}
+.spec-with-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.resource-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.resource-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.crumb {
+  flex-wrap: wrap;
+}
+.crumb-nav {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+}
+.crumb-nav a {
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+/* Crossfade stage for motion & web previews */
+.detail-visual {
+  position: relative;
+}
+.detail-visual.is-switching > .stage-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.detail-visual > .stage-layer.is-entering {
+  opacity: 0;
+}
+
+/* Saved item exit animation & auto-save status */
+.saved-item {
+  transition:
+    opacity 180ms var(--ease-in),
+    transform 180ms var(--ease-in);
+}
+.saved-item.is-removing {
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+}
+.saved-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.note-status {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.note-status.on {
+  opacity: 1;
+}
+
+/* Toast with Undo */
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  transform: translate(-50%, 14px) scale(0.96);
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+  pointer-events: auto;
+}
+.toast-undo {
+  border: 1px solid currentColor;
+  border-radius: 99px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+  opacity: 0.92;
+}
+
+/* Native dialog open/close transitions */
+dialog {
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+}
+dialog[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+dialog::backdrop {
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+  opacity: 0;
+}
+dialog[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Frosted-glass sticky bars */
+.scene-switch,
+.discovery-controls,
+.toolbar {
+  background: color-mix(in srgb, var(--bg) 86%, transparent) !important;
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+}
+
+/* Compositor-only card elevation (pseudo-element shadow fades opacity) */
+.curated-card,
+.task-grid .case-card .cover {
+  position: relative;
+}
+.curated-card::after,
+.task-grid .case-card .cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+  z-index: -1;
+}
+:root[data-theme="dark"] .curated-card::after,
+:root[data-theme="dark"] .task-grid .case-card .cover::after {
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+.curated-card {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    opacity var(--dur-slow) var(--ease-out);
+}
+.task-grid .case-card {
+  border-radius: 14px;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    opacity var(--dur-slow) var(--ease-out) !important;
+}
+.task-grid .case-card .cover {
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+.task-grid .case-card .card-arrow {
+  display: inline-block;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+/* Scroll reveal */
+.curated-card,
+.quick-task-list a,
+.task-grid .case-card {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.curated-card.is-revealed,
+.quick-task-list a.is-revealed,
+.task-grid .case-card.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* Back-to-top floating pill */
+.back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 45;
+  padding: 9px 15px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(12px) scale(0.94);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.back-to-top.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.back-to-top:active {
+  transform: scale(0.95);
+}
+
+/* Hover states strictly isolated to fine pointers (prevents sticky hover on touch) */
+@media (hover: hover) and (pointer: fine) {
+  .card-save:hover {
+    transform: scale(1.06);
+  }
+  .search-clear:hover {
+    color: var(--text);
+    background: var(--line);
+  }
+  .active-filters .clear-all:hover {
+    color: var(--text);
+    border-color: var(--text);
+  }
+  .toast-undo:hover {
+    opacity: 1;
+  }
+  .copy-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .crumb-nav a:hover {
+    color: var(--text);
+    background: var(--soft);
+  }
+  .curated-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  }
+  .curated-card:hover::after {
+    opacity: 1;
+  }
+  .task-grid .case-card:hover .cover {
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+    transform: translateY(-3px);
+  }
+  .task-grid .case-card:hover .cover::after {
+    opacity: 1;
+  }
+  .task-grid .case-card:hover .card-arrow {
+    transform: translate(2px, -2px);
+    color: var(--accent);
+  }
+  .back-to-top:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+/* Mobile ergonomics: unstick secondary filter bars to free ~110px viewport height */
+@media (max-width: 700px) {
+  .discovery-controls,
+  .toolbar {
+    position: static !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: transparent !important;
+  }
+  .back-to-top {
+    right: 16px;
+    bottom: 16px;
+    padding: 8px 13px;
+    font-size: 11px;
+  }
+  .crumb-nav {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 6px;
+    justify-content: space-between;
+  }
+}
+
+/* Respect prefers-reduced-motion completely */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .curated-card,
+  .quick-task-list a,
+  .task-grid .case-card {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .cover:has(> img.is-loading) {
+    background: var(--soft) !important;
+  }
+}
