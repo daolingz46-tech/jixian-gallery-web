@@ -486,6 +486,16 @@
     };
     return byAccess[c.access] || "含可追溯资料";
   }
+  function verificationNote(c) {
+    const map = {
+      reproduced: "一级核验 · 本站已完成本地复跑验证，产出与示例一致。",
+      adapted: "一级核验 · 本站已完成内容改编与独立导出实测。",
+      local_example: "本站原创工程 · 独立 HTML/CSS 源码已实测可直接离线编辑与复用。",
+      files_complete: "二级核验 · 已核实原仓库包含完整工程源码或工作流文件，并锁定 Commit 版本存档。",
+      author_example: "三级核验 · 已核实原作者公开演示出处、对应配方记录与开源许可证。"
+    };
+    return map[c.verification_state];
+  }
   function selectCases(cases2, skills2, route2) {
     return cases2.filter(
       (c) => !c.archived && (route2.audience === "all" || c.task_ids.some((id) => findTask(id)?.audience === route2.audience)) && (route2.task === "all" || c.task_ids.some((id) => id === route2.task)) && (route2.media === "all" || c.media === route2.media) && (route2.tool === "all" || c.tool === route2.tool) && (route2.access === "all" || c.access === route2.access || route2.access === "skill" && c.skill_ids.length > 0) && (!route2.q || [
@@ -507,7 +517,7 @@
     const visible = cases2.filter((c) => !c.archived);
     const repositories = new Set(
       visible.flatMap(
-        (c) => c.origin === "external" ? [new URL(c.source_url).pathname.split("/").slice(1, 3).join("/")] : []
+        (c) => c.origin === "external" ? [new URL(c.source_file_url).pathname.split("/").slice(1, 3).join("/")] : []
       )
     );
     return {
@@ -539,6 +549,19 @@
   // src/ui/views.ts
   var main = $("#main");
   var stats = statistics(cases, skills);
+  var RESOURCE_TYPE_LABELS = {
+    skill: "SKILL 配方",
+    workflow: "WORKFLOW JSON",
+    project: "工程源码",
+    code: "代码文件",
+    config: "配置参数",
+    prompt: "原始提示词",
+    docs: "使用文档",
+    preview: "原站预览",
+    input: "输入素材",
+    repo: "来源仓库",
+    showcase: "成片演示"
+  };
   function nav(route2) {
     const items = [
       ["发现案例", "#discover", "all"],
@@ -551,7 +574,8 @@
   function card(c, index = 0) {
     const orient = c.ratio < 0.88 ? "portrait" : c.ratio > 1.48 ? "wide" : "standard";
     const verified = c.origin === "local" || c.verification_state === "reproduced" || c.verification_state === "adapted";
-    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" data-orient="' + orient + '" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false" aria-label="收藏：' + esc(c.title) + '">' + icon("bookmark") + '</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? `<span class="source-author">${icon("github")}${external(c.source_url, c.author + " ↗")}</span><span class="commit-pill" title="固定源码 Commit 版本">#${esc(c.source_commit.slice(0, 7))}</span>` : `<span class="source-author">${esc(c.author)}</span>`) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><div class="card-provenance"><span class="case-status' + (verified ? " is-verified" : "") + '">' + esc(deliverableBadge(c)) + '</span><span class="license-pill">' + esc(licenseShort(c)) + '</span></div><div class="task-tags">' + c.task_ids.slice(0, 2).map(
+    const isGithub = c.origin === "external" && c.source_url.includes("github.com");
+    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" data-orient="' + orient + '" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false" aria-label="收藏：' + esc(c.title) + '">' + icon("bookmark") + '</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? `<span class="source-author">${isGithub ? icon("github") : ""}${external(c.source_url, c.author + " ↗")}</span><span class="commit-pill" title="固定源码 Commit 版本">#${esc(c.source_commit.slice(0, 7))}</span>` : `<span class="source-author">${esc(c.author)}</span>`) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><div class="card-provenance"><span class="case-status' + (verified ? " is-verified" : "") + '">' + esc(deliverableBadge(c)) + '</span><span class="license-pill">' + esc(licenseShort(c)) + '</span></div><div class="task-tags">' + c.task_ids.slice(0, 2).map(
       (id) => `<a href="#discover?task=${id}">${esc(findTask(id)?.short || id)}</a>`
     ).join("") + "</div></div></article>";
   }
@@ -628,12 +652,11 @@
       <div class="trust-item"><span class="trust-icon">${icon("layers")}</span><div><strong>100% 原始 Commit 与许可</strong><span>MIT / Apache-2.0 / CC BY 明确标注</span></div></div>
       <a class="trust-item trust-link" href="assets/sources/manifest.json" target="_blank" rel="noopener noreferrer"><div><strong>SHA-256 校验清单公开 ↗</strong><span>逐文件哈希底账随时可查验</span></div></a>
     </section>
-    <section class="quick-tasks" aria-label="从创作任务开始"><div><span class="eyebrow">START BY TASK / 按任务直达</span><h2>今天，你想做什么？</h2><p>从真实创作任务切入，直接拿到成品参考与原始制作文件。</p></div><div class="quick-task-list"><a data-quick-task="presentation" ${route2.task === "presentation" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=presentation">${icon("slides")}<span>课程汇报</span>${icon("arrow")}</a><a data-quick-task="poster" ${route2.task === "poster" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=poster">${icon("frame")}<span>展板与海报</span>${icon("arrow")}</a><a data-quick-task="advertising" ${route2.task === "advertising" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=advertising">${icon("box")}<span>广告与产品</span>${icon("arrow")}</a><a data-quick-task="story" ${route2.task === "story" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=story">${icon("film")}<span>短剧与叙事</span>${icon("arrow")}</a></div></section>
-    <div class="discovery-shell">
+    <div class="discovery-shell" id="gallery-workspace">
     <section class="scene-switch" aria-label="选择创作场景">
-      <button class="scene scene-all" data-audience="all" aria-pressed="${route2.audience === "all"}">${icon("grid")}<span><strong>全部场景</strong><small>${cases.length} 项核验案例自由检索</small></span></button>
-      <button class="scene scene-campus" data-audience="campus" aria-pressed="${route2.audience === "campus"}">${icon("slides")}<span><strong>校园创作</strong><small>课程作业 · 毕设展板 · 作品集</small></span>${icon("arrow")}</button>
-      <button class="scene scene-professional" data-audience="professional" aria-pressed="${route2.audience === "professional"}">${icon("layers")}<span><strong>职业创作</strong><small>个人创作者 · 商业广告 · 企业工作流</small></span>${icon("arrow")}</button>
+      <button class="scene scene-all" data-audience="all" aria-pressed="${route2.audience === "all"}">${icon("grid")}<span><strong>全部场景</strong><small>${cases.length} 项核验案例</small></span></button>
+      <button class="scene scene-campus" data-audience="campus" aria-pressed="${route2.audience === "campus"}">${icon("slides")}<span><strong>校园创作</strong><small>课程汇报 · 毕设展板 · 作品集</small></span></button>
+      <button class="scene scene-professional" data-audience="professional" aria-pressed="${route2.audience === "professional"}">${icon("layers")}<span><strong>职业创作</strong><small>商业广告 · 短剧叙事 · 企业工作流</small></span></button>
     </section>
     <section class="discovery-layout">
       <aside class="task-sidebar" aria-label="按创作任务浏览"><div class="sidebar-label">按任务目录浏览</div>
@@ -683,31 +706,43 @@
     const idx = visible.findIndex((item) => item.id === c.id);
     const prevCase = idx > 0 ? visible[idx - 1] : void 0;
     const nextCase = idx >= 0 && idx < visible.length - 1 ? visible[idx + 1] : void 0;
+    const related = visible.filter(
+      (item) => item.id !== c.id && item.task_ids.some((tid) => c.task_ids.includes(tid))
+    ).slice(0, 3);
     const copyBtn = (value, label) => `<button type="button" class="copy-btn" data-copy="${esc(value)}" aria-label="${esc(label)}" title="${esc(label)}">${icon("copy")}<span>复制</span></button>`;
     const out = c.origin === "external";
+    const isGithub = out && c.source_url.includes("github.com");
     let action = c.archived ? '<a class="primary" href="#discover?media=' + c.media + '">查看有来源的新案例 ↗</a>' : out ? external(c.primary_url, c.primary_label, "primary") : '<a class="primary" href="' + safe(c.preview) + '" download="' + c.id + '-example.html">获取网页示例代码 ↓</a>';
     main.innerHTML = '<div class="crumb"><a href="' + esc(lastDiscover2) + '">← 返回画廊</a><span>/</span><span>' + names[c.media] + "</span><span>/</span><span>" + esc(c.tag) + "</span>" + (prevCase || nextCase ? '<span class="crumb-nav">' + (prevCase ? `<a href="#effect/${prevCase.id}" data-prev-case title="上一个案例（←）：${esc(prevCase.title)}">← 上一个</a>` : "") + (nextCase ? `<a href="#effect/${nextCase.id}" data-next-case title="下一个案例（→）：${esc(nextCase.title)}">下一个 →</a>` : "") + "</span>" : "") + "</div>" + (c.archived ? '<p class="archive-notice">这项旧布局参考已移出精选。</p>' : "") + '<section class="detail-grid"><div><div class="detail-visual" id="detail-visual">' + preview(c) + "</div>" + (c.motion_preview ? '<button id="load-motion" class="preview-open" aria-pressed="false">播放官方动态 WEBP 预览 ▶</button>' : c.preview ? '<button class="preview-open" id="launch-preview">打开网页交互预览 ↗</button>' : "") + '<div class="visual-caption"><span>' + esc(c.cover_role) + "</span><span>" + esc(c.author) + '</span></div></div><div class="detail-info"><div class="eyebrow">' + names[c.media] + " / " + esc(c.tag) + "</div><h1>" + esc(c.title) + '</h1><div class="detail-task-links">' + c.task_ids.map(
       (id) => `<a href="#discover?task=${id}">${esc(findTask(id)?.label || id)}</a>`
-    ).join("") + '</div><div class="detail-badges"><span class="badge badge-verified">' + esc(deliverableBadge(c)) + '</span><span class="badge">' + esc(licenseShort(c)) + "</span>" + (out ? `<span class="badge badge-mono" title="固定源码 Commit 版本">#${esc(c.source_commit.slice(0, 8))}</span>` : "") + '</div><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>原始出处</dt><dd class="spec-with-copy">' + (out ? `<span class="source-author">${icon("github")}${external(c.source_url, c.author + " ↗")}</span>` + copyBtn(c.source_url, "复制来源仓库链接") : esc(c.author)) + "</dd></div><div><dt>可取用资料</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>环境与准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>运行前提与边界</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>开源许可范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary detail-save" data-save="' + c.id + '">' + icon("bookmark") + '<span>收藏</span></button></div><p class="action-note">' + (out ? "直连原作者公开仓库获取一手工程与参数文件。" : "下载独立 HTML 后可直接用浏览器打开，支持离线编辑与二次修改。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "已核实的原始制作文件" : "本地示例工程文件") + "</h2>" + (out ? c.resources.map(
-      (r, i) => '<div class="resource-row"><span>' + String(i + 1).padStart(2, "0") + "</span><div>" + external(r.url, r.label + " ↗") + "<small>" + esc(new URL(r.url).hostname) + " · " + esc(r.type) + "</small></div>" + copyBtn(r.url, "复制 " + r.label + " 链接") + "</div>"
-    ).join("") : c.preview ? '<div class="resource-row"><span>01</span><div><a href="' + safe(c.preview) + '" download>独立 HTML 源码文件 ↓</a><small>本站原创编写，无外部依赖，可直接修改复用</small></div></div>' : '<p class="muted">暂无附加文件。</p>') + (!out && c.steps?.length ? '<h2 class="section-title example-steps-title">如何开始复用</h2>' + c.steps.map(
+    ).join("") + '</div><div class="detail-badges"><span class="badge badge-verified">' + esc(deliverableBadge(c)) + '</span><span class="badge">' + esc(licenseShort(c)) + "</span>" + (out ? `<span class="badge badge-mono" title="固定源码 Commit 版本">#${esc(c.source_commit.slice(0, 8))}</span>` : "") + '</div><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>原始出处</dt><dd class="spec-with-copy">' + (out ? `<span class="source-author">${isGithub ? icon("github") : ""}${external(c.source_url, c.author + " ↗")}</span>` + copyBtn(c.source_url, "复制来源链接") : esc(c.author)) + "</dd></div><div><dt>可取用资料</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>环境与准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>运行前提与边界</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>开源许可范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary detail-save" data-save="' + c.id + '">' + icon("bookmark") + '<span>收藏</span></button></div><p class="action-note">' + (out ? "直连原作者公开仓库获取一手工程与参数文件。" : "下载独立 HTML 后可直接用浏览器打开，支持离线编辑与二次修改。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "已核实的原始制作文件" : "本地示例工程文件") + "</h2>" + (out ? c.resources.map(
+      (r, i) => '<div class="resource-row"><span class="res-num">' + String(i + 1).padStart(2, "0") + '</span><div class="res-main"><div class="res-title-row">' + external(r.url, r.label + " ↗") + '<span class="res-type-pill">' + esc(RESOURCE_TYPE_LABELS[r.type] || r.type.toUpperCase()) + "</span></div><small>" + esc(new URL(r.url).hostname) + "</small></div>" + copyBtn(r.url, "复制 " + r.label + " 链接") + "</div>"
+    ).join("") : c.preview ? '<div class="resource-row"><span class="res-num">01</span><div class="res-main"><div class="res-title-row"><a href="' + safe(c.preview) + '" download>独立 HTML 源码文件 ↓</a><span class="res-type-pill">HTML 源码</span></div><small>本站原创编写，无外部依赖，可直接修改复用</small></div></div>' : '<p class="muted">暂无附加文件。</p>') + (!out && c.steps?.length ? '<h2 class="section-title example-steps-title">如何开始复用</h2>' + c.steps.map(
       (step, index) => '<div class="step"><span>' + String(index + 1).padStart(2, "0") + "</span><p>" + esc(step) + "</p></div>"
-    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span>02</span><div><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的实测示例 ↗</a><small>由本站实际编辑并导出的 HTML 成品验证</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><div class="config-head"><span>原始配置参数</span>' + copyBtn(JSON.stringify(c.configuration, null, 2), "复制配置 JSON") + "</div><code>" + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>溯源核验档案</h3><p class="completeness">' + esc(c.verification) + "</p>" + (out ? "<h3>作品与配方关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details open><summary>固定版本、出处与许可证</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始仓库记录 ↗") + "</p><p>核验日期 " + collectedDate + " · Commit <code>" + esc(c.source_commit.slice(0, 12)) + "</code></p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "查看原仓库许可证全文 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出溯源元数据 JSON ↓</button>' : "") + "</aside></section>";
+    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span class="res-num">02</span><div class="res-main"><div class="res-title-row"><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的实测示例 ↗</a><span class="res-type-pill">实测成品</span></div><small>由本站实际编辑并导出的 HTML 成品验证</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><div class="config-head"><span>原始配置参数</span>' + copyBtn(JSON.stringify(c.configuration, null, 2), "复制配置 JSON") + '</div><pre class="config-pre"><code>' + esc(JSON.stringify(c.configuration, null, 2)) + "</code></pre></div>" : "") + '</div><aside class="source-box"><div class="source-tier-head"><span class="trust-icon">' + icon("shield") + '</span><div><h3>溯源核验档案</h3><p class="completeness">' + esc(verificationNote(c)) + "</p></div></div>" + (out ? "<h3>作品与配方关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details open><summary>固定版本、出处与许可证记录</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始仓库记录 ↗") + "</p><p>核验日期 " + collectedDate + " · Commit <code>" + esc(c.source_commit.slice(0, 12)) + "</code></p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "查看原仓库许可证全文 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出溯源元数据 JSON ↓</button>' : "") + "</aside></section>" + (related.length ? '<section class="related-section" aria-label="同任务延伸案例"><div class="related-head"><div><span class="eyebrow">RELATED PROVENANCE CASES</span><h2>同任务延伸核验案例</h2></div><a class="secondary" href="' + esc("#discover?task=" + c.task_ids[0]) + '">查看该任务全部案例 ↗</a></div><div class="gallery task-grid related-grid">' + related.map((item, i) => card(item, i + 6)).join("") + "</div></section>" : "");
   }
   function savedPage(saved2, storageAvailable2) {
     const ids = Object.keys(saved2);
-    main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR PROVENANCE COLLECTION</div><h1>好作品，有据可循。</h1><p>收藏自动同步保留原作者、固定 Commit 版本、原文件链接与你的项目备注。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续浏览画廊 ↗</a>' + (ids.length ? '<button class="primary" id="export-saved">导出收藏清单 JSON ↓</button>' : "") + '</div></section><div class="board-name"><span>已收藏案例 / ' + ids.length + '</span><span>本地加密存储于当前浏览器 · 支持一键导出备份</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
+    main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR PROVENANCE COLLECTION</div><h1>好作品，有据可循。</h1><p>收藏自动同步保留原作者、固定 Commit 版本、原文件链接与你的项目备注，支持直接复制为论文或汇报引用列表。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续浏览画廊 ↗</a>' + (ids.length ? '<button class="secondary" id="copy-saved-md">' + icon("copy") + '<span>复制 Markdown 引用表</span></button><button class="primary" id="export-saved">导出 JSON 清单 ↓</button>' : "") + '</div></section><div class="board-name"><span>已收藏案例 / ' + ids.length + '</span><span>仅保存在当前浏览器本地 · 零上传</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
       const c = cases.find((c2) => c2.id === id);
       if (!c) return "";
-      return '<article class="saved-item" data-saved-item="' + id + '"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + deliverableBadge(c) + " · " + licenseShort(c)) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="记录你想复用的部分或目标项目…">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
-    }).join("") : '<div class="empty-state"><h2>建立你的可溯源灵感库</h2><p>在画廊点击卡片右上角书签，将作品、原始工程链接与开源许可一并归档。</p><a href="#discover" class="primary">去浏览核验案例 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>当前浏览器限制本地存储，请及时导出清单 JSON 备份。</p>" : "");
+      return '<article class="saved-item" data-saved-item="' + id + '"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + deliverableBadge(c) + " · " + licenseShort(c)) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="记录你想复用的部分、课程作业或目标项目…">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
+    }).join("") : '<div class="empty-state"><div class="empty-icon">' + icon("bookmark") + '</div><h2>建立你的可溯源灵感库</h2><p>在画廊点击卡片右上角书签，将作品、原始工程链接与开源许可一并归档，随时一键导出 Markdown 引用表。</p><a href="#discover" class="primary">去浏览核验案例 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>当前浏览器限制本地存储，请及时导出清单 JSON 备份。</p>" : "");
   }
   function methods() {
-    main.innerHTML = '<section class="methods-intro"><div class="eyebrow">VERIFIED SKILLS &amp; WORKFLOWS</div><h1>每个工具，都连着真实作品。</h1><p>收录已完成出处核验的 ' + stats.skills + " 个开源 Skill 配方与 " + stats.workflows + " 个官方 ComfyUI 工作流，一键直达原仓库文件与对应成片案例。</p></section>" + skills.map(
-      (s) => '<div class="method-row"><div><strong>' + esc(s.label) + '</strong><small class="method-author">' + esc(s.author) + "</small></div><span>" + esc(s.description) + '</span><div class="method-links">' + external(s.url, "查看原 Skill 仓库 ↗", "secondary") + '<a href="#discover?q=' + encodeURIComponent(s.label) + '">关联成片案例 ↗</a></div></div>'
-    ).join("") + cases.filter((c) => c.access === "workflow").map(
-      (c) => '<div class="method-row"><div><strong>' + esc(c.method_label || c.title) + '</strong><small class="method-author">' + esc(c.author + " · " + licenseShort(c)) + "</small></div><span>" + esc(c.method_summary || c.summary) + '</span><a href="#effect/' + c.id + '" class="secondary">查看工作流与案例 ↗</a></div>'
-    ).join("");
+    const visibleCases = cases.filter((c) => !c.archived);
+    const workflowCases = visibleCases.filter((c) => c.access === "workflow");
+    const skillCardsHtml = skills.map((s) => {
+      const linked = visibleCases.filter((c) => c.skill_ids.includes(s.id));
+      const thumbs = linked.slice(0, 3);
+      return '<article class="method-card' + (thumbs.length ? "" : " method-card-solo") + '"><div class="method-main"><div class="method-top"><h3>' + esc(s.label) + '</h3><span class="license-pill">MIT</span>' + (linked.length ? '<span class="method-count">关联 ' + linked.length + " 项成片</span>" : '<span class="license-pill">独立配方库</span>') + '</div><div class="method-author">' + icon("github") + "<span>" + esc(s.author) + "</span></div><p>" + esc(s.description) + '</p><div class="method-actions">' + external(s.url, "查看原 Skill 仓库 ↗", "secondary") + '<a class="method-filter-link" href="#discover?q=' + encodeURIComponent(s.label) + '">筛选全部关联案例 ↗</a></div></div>' + (thumbs.length ? '<div class="method-thumbs" aria-label="关联成片预览">' + thumbs.map(
+        (c) => `<a class="method-thumb" href="#effect/${c.id}" title="${esc(c.title)}"><img src="${safe(c.cover)}" alt="${esc(c.title)}" loading="lazy" decoding="async"><span>${esc(c.title)}</span></a>`
+      ).join("") + "</div>" : "") + "</article>";
+    }).join("");
+    const workflowCardsHtml = workflowCases.map((c) => {
+      return '<article class="method-card method-card-workflow"><div class="method-main"><div class="method-top"><h3>' + esc(c.method_label || c.title) + '</h3><span class="license-pill">' + esc(licenseShort(c)) + '</span><span class="method-count">官方工作流 JSON</span></div><div class="method-author">' + icon("github") + "<span>" + esc(c.author) + " · #" + esc(c.origin === "external" ? c.source_commit.slice(0, 7) : "") + "</span></div><p>" + esc(c.method_summary || c.summary) + '</p><div class="method-actions"><a href="#effect/' + c.id + '" class="secondary">查看工作流与参数详情 ↗</a>' + (c.origin === "external" ? external(c.primary_url, "直达原文件 ↗", "method-filter-link") : "") + '</div></div><div class="method-thumbs method-thumbs-single"><a class="method-thumb" href="#effect/' + c.id + '" title="' + esc(c.title) + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '" loading="lazy" decoding="async"><span>' + esc(c.title) + "</span></a></div></article>";
+    }).join("");
+    main.innerHTML = '<section class="methods-intro"><div class="eyebrow">VERIFIED SKILLS &amp; WORKFLOWS</div><h1>每个工具，都连着真实作品。</h1><p>收录已完成出处与版本核验的 <strong>' + stats.skills + " 个开源 Agent Skill 配方</strong> 与 <strong>" + stats.workflows + ' 个官方 ComfyUI 节点工作流</strong>。右侧缩略图均为该配方实际产出的收录案例，点击可直接查看原工程文件。</p></section><section class="methods-section"><div class="methods-section-head"><div><span class="eyebrow">01 / AGENT SKILLS</span><h2>开源 Agent Skills 配方</h2></div><span class="result-count">' + skills.length + ' 项配方</span></div><div class="methods-list">' + skillCardsHtml + '</div></section><section class="methods-section"><div class="methods-section-head"><div><span class="eyebrow">02 / COMFYUI WORKFLOWS</span><h2>ComfyUI 官方节点工作流</h2></div><span class="result-count">' + workflowCases.length + ' 项工作流</span></div><div class="methods-list">' + workflowCardsHtml + "</div></section>";
   }
   function missing() {
     main.innerHTML = '<div class="empty-state"><h1>未找到对应案例档案</h1><a href="#discover" class="primary">返回画廊首页</a></div>';
@@ -1506,6 +1541,8 @@
     if (route.page === "discover") {
       mountRibbon();
       observeReveals();
+    } else if (route.page === "effect") {
+      observeReveals();
     }
     layout();
     const scenes = main2.querySelector(".scene-switch");
@@ -1569,7 +1606,7 @@
       return;
     }
     if (button.id === "explore-gallery") {
-      main2.querySelector(".quick-tasks")?.scrollIntoView({
+      main2.querySelector("#gallery-workspace")?.scrollIntoView({
         behavior: prefersReduced() ? "instant" : "smooth",
         block: "start"
       });
@@ -1742,6 +1779,23 @@
         ...record(c)
       });
       notify("已导出案例资料");
+      return;
+    }
+    if (button.id === "copy-saved-md") {
+      const lines = [
+        "# 即现 · 可溯源创作参考清单",
+        "",
+        ...Object.entries(saved).flatMap(([id, value], idx) => {
+          const item = cases.find((c2) => c2.id === id);
+          if (!item) return [];
+          const src = item.origin === "external" ? `${item.source_url} (Commit: #${item.source_commit.slice(0, 8)})` : "即现本站原创示例";
+          const notePart = value.note?.trim() ? ` ｜ 备注：${value.note.trim()}` : "";
+          return [
+            `${idx + 1}. **《${item.title}》** — ${item.author} · ${item.delivery} · 开源范围：${item.rights.split("。")[0]} · 来源：${src}${notePart}`
+          ];
+        })
+      ];
+      void copyText(lines.join("\n"), button);
       return;
     }
     if (button.id === "export-saved") {
