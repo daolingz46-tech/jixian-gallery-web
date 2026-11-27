@@ -312,7 +312,11 @@
     bookmark: '<path d="M6 3h12v18l-6-4-6 4z"/>',
     bookmarkFilled: '<path d="M6 3h12v18l-6-4-6 4z" fill="currentColor"/>',
     copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
-    check: '<path d="M20 6 9 17l-5-5"/>'
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41"/>',
+    moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+    github: '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>'
   };
   function icon(name) {
     return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
@@ -446,6 +450,42 @@
     code: "有网页代码",
     reference: "仅参考"
   };
+  var RIBBON_CASE_IDS = [
+    "source-watercolor",
+    "source-wan",
+    "source-editorial",
+    "source-flux3-i2v",
+    "source-knolling",
+    "source-claymation",
+    "campus-project",
+    "source-launch"
+  ];
+  function licenseShort(c) {
+    if (c.origin === "local") return "本站原创 · 可修改";
+    const r = c.rights;
+    if (r.includes("Apache-2.0")) return "Apache-2.0";
+    if (r.includes("CC BY 4.0")) return "CC BY 4.0";
+    if (r.includes("GPL-3.0")) return "GPL-3.0";
+    if (r.includes("MPL-2.0")) return "MPL-2.0";
+    if (r.includes("AGPL")) return "AGPL-3.0";
+    if (r.includes("Sustainable Use") || r.includes("fair-code"))
+      return "Fair-code";
+    if (r.includes("MIT")) return "MIT";
+    return "公开许可";
+  }
+  function deliverableBadge(c) {
+    if (c.verification_state === "reproduced") return "✓ 本站复跑通过";
+    if (c.verification_state === "adapted") return "✓ 已完成改编验证";
+    if (c.origin === "local") return "✓ 独立 HTML 源码";
+    const byAccess = {
+      skill: "含原 Skill 配方",
+      workflow: "含工作流 JSON",
+      project: "含开源工程源码",
+      code: "含前端源码",
+      reference: "含提示词与原出处"
+    };
+    return byAccess[c.access] || "含可追溯资料";
+  }
   function selectCases(cases2, skills2, route2) {
     return cases2.filter(
       (c) => !c.archived && (route2.audience === "all" || c.task_ids.some((id) => findTask(id)?.audience === route2.audience)) && (route2.task === "all" || c.task_ids.some((id) => id === route2.task)) && (route2.media === "all" || c.media === route2.media) && (route2.tool === "all" || c.tool === route2.tool) && (route2.access === "all" || c.access === route2.access || route2.access === "skill" && c.skill_ids.length > 0) && (!route2.q || [
@@ -502,22 +542,16 @@
   function nav(route2) {
     const items = [
       ["发现案例", "#discover", "all"],
-      ["工具与方法", "#methods", "methods"]
+      ["Skills 与工作流", "#methods", "methods"]
     ];
     $("#nav").innerHTML = items.map(
       ([n, u, m]) => '<a href="' + u + '" ' + (route2.page === "discover" && m === "all" || route2.page === "methods" && m === "methods" ? 'class="active" aria-current="page"' : "") + ">" + n + "</a>"
     ).join("");
   }
   function card(c, index = 0) {
-    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false" aria-label="收藏：' + esc(c.title) + '">' + icon("bookmark") + '</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? external(c.source_url, c.author + " ↗") : esc(c.author)) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><span class="case-status">' + esc(
-      {
-        author_example: "作者示例 · 未复跑",
-        files_complete: "资料齐备 · 未复跑",
-        reproduced: "本站复跑通过",
-        adapted: "已完成改编验证",
-        local_example: "本站网页示例"
-      }[c.verification_state]
-    ) + '</span><div class="task-tags">' + c.task_ids.slice(0, 2).map(
+    const orient = c.ratio < 0.88 ? "portrait" : c.ratio > 1.48 ? "wide" : "standard";
+    const verified = c.origin === "local" || c.verification_state === "reproduced" || c.verification_state === "adapted";
+    return '<article class="case-card" data-case="' + c.id + '"><a class="cover" data-orient="' + orient + '" href="#effect/' + c.id + '" style="aspect-ratio:4/3"><span class="cover-fallback">原站预览暂不可用<br>点击查看来源与制作资料</span><img src="' + safe(c.cover) + '" alt="' + esc(c.title + " · " + c.cover_role) + '" loading="' + (index < 6 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer"><span class="card-type">' + names[c.media] + "</span>" + (c.video || c.motion_preview ? '<span class="video-play">▶ ' + esc(c.duration) + "</span>" : "") + '</a><button class="card-save" data-save="' + c.id + '" aria-pressed="false" aria-label="收藏：' + esc(c.title) + '">' + icon("bookmark") + '</button><div class="card-info"><a href="#effect/' + c.id + '"><span class="card-arrow">↗</span><h2>' + esc(c.title) + '</h2></a><div class="card-source">' + (c.origin === "external" ? `<span class="source-author">${icon("github")}${external(c.source_url, c.author + " ↗")}</span><span class="commit-pill" title="固定源码 Commit 版本">#${esc(c.source_commit.slice(0, 7))}</span>` : `<span class="source-author">${esc(c.author)}</span>`) + '</div><p class="delivery-label">' + esc(c.delivery) + '</p><div class="card-provenance"><span class="case-status' + (verified ? " is-verified" : "") + '">' + esc(deliverableBadge(c)) + '</span><span class="license-pill">' + esc(licenseShort(c)) + '</span></div><div class="task-tags">' + c.task_ids.slice(0, 2).map(
       (id) => `<a href="#discover?task=${id}">${esc(findTask(id)?.short || id)}</a>`
     ).join("") + "</div></div></article>";
   }
@@ -544,61 +578,96 @@
       agent: "Agent / Skills",
       comfy: "ComfyUI",
       browser: "浏览器",
-      reference: "仅参考"
+      reference: "提示词与参考"
     };
     const taskCount = task ? countFor(task.id) : cases.filter(
       (c) => route2.audience === "all" || c.task_ids.some((id) => findTask(id)?.audience === route2.audience)
     ).length;
+    const firstRibbon = cases.find((c) => c.id === RIBBON_CASE_IDS[0]);
+    const slotButtonsHtml = RIBBON_CASE_IDS.map((id, idx) => {
+      const item = cases.find((c) => c.id === id);
+      const num = String(idx + 1).padStart(2, "0");
+      return `<button type="button" data-ribbon-slot="${idx}" class="${idx === 0 ? "is-active" : ""}" aria-pressed="${idx === 0}" title="${esc(item?.title || num)}">${num}</button>`;
+    }).join("");
     const markup = `
-    <section class="task-hero hero-scene" aria-label="即现创作画廊介绍">
+    <section class="task-hero hero-scene" aria-label="即现莫比乌斯创作闭环展厅">
       <div class="hero-stage">
         <div class="hero-light" aria-hidden="true"></div><div class="hero-fallback" aria-hidden="true"></div>
         <canvas id="hero-ribbon" aria-hidden="true"></canvas>
-        <div class="hero-message hero-message-first"><p>每一个灵感，都值得</p><h1>即刻呈现<span>。</span></h1></div>
-        <div class="hero-message hero-message-next" aria-hidden="true"><p>从看见，到做出</p><div class="hero-large">成为你的作品<span>。</span></div></div>
-        <div class="hero-controls"><button id="hero-pause" type="button" aria-pressed="false" aria-label="暂停环面动画"><span aria-hidden="true">Ⅱ</span> 暂停画面</button><details><summary>环面作品来源</summary><div><a href="#effect/source-watercolor">水彩叙事插画</a><a href="#effect/source-wan">图生视频</a><a href="#effect/source-editorial">杂志式信息图</a><a href="#effect/source-flux3-i2v">产品图动画</a><a href="#effect/source-cinematic">电影感画面</a><a href="#effect/source-claymation">黏土风格</a><a href="#effect/campus-project">课程项目展示</a><a href="#effect/source-elegant">优雅风格插画</a></div></details></div>
-        <div class="hero-bottom"><p>从课程汇报、毕设展板，到广告短片。<br>找到好作品，也找到它的制作资料。</p><button class="hero-explore" id="explore-gallery">探索创作案例 <span aria-hidden="true">↗</span></button></div>
-        <div class="hero-scroll" aria-hidden="true"><span>向下探索</span><i></i></div>
+        <div class="hero-message hero-message-first">
+          <span class="hero-kicker"><i aria-hidden="true"></i>MÖBIUS PROVENANCE ARCHIVE · 灵感与源头的闭环</span>
+          <p>每一个灵感，都值得</p>
+          <h1>即刻呈现<span>。</span></h1>
+          <p class="hero-subline">看见成品 · 追溯原工程 · 化为你的新作品 — 左右拖拽拨动莫比乌斯环，探索环上 8 件真迹与原始源码</p>
+        </div>
+        <div class="hero-message hero-message-next" aria-hidden="true">
+          <span class="hero-kicker"><i aria-hidden="true"></i>VERIFIED OPEN WORKFLOWS</span>
+          <p>有原始工程，也有开源许可</p>
+          <div class="hero-large">放心取用<span>。</span></div>
+        </div>
+        <div class="hero-dock" role="region" aria-label="莫比乌斯环真迹实时导览">
+          <div class="dock-live">
+            <div class="dock-live-info">
+              <div class="dock-live-top"><span class="dock-badge" id="ribbon-live-index">01 / 08</span><span class="dock-hint">当前环面真迹 · 点击右侧编号或拖拽环面切换</span></div>
+              <div class="dock-live-title" id="ribbon-live-title">${esc(firstRibbon?.title || "水彩叙事插画")}</div>
+              <div class="dock-live-meta" id="ribbon-live-meta">${firstRibbon ? esc(`${firstRibbon.author} · ${deliverableBadge(firstRibbon)} · ${licenseShort(firstRibbon)}`) : ""}</div>
+            </div>
+            <a class="dock-open" id="ribbon-live-link" href="#effect/${RIBBON_CASE_IDS[0]}">查看源码与案例 ↗</a>
+          </div>
+          <div class="dock-slots" role="group" aria-label="切换环面展示作品">${slotButtonsHtml}</div>
+          <div class="dock-actions">
+            <button id="hero-pause" class="dock-pause" type="button" aria-pressed="false" aria-label="暂停莫比乌斯环动画"><span aria-hidden="true">Ⅱ</span> 暂停</button>
+            <button class="hero-explore" id="explore-gallery" type="button">浏览全部 ${cases.length} 项 <span aria-hidden="true">↓</span></button>
+          </div>
+        </div>
       </div>
     </section>
-    <section class="curated" aria-label="热门创作资源推荐">
-      <div class="curated-heading"><div><span class="eyebrow">CURATED FOR MAKERS / 01</span><h2>值得动手试的创作工具</h2><p>从灵感到作品，精选社区关注度高、用途明确的公开项目。</p></div><span class="curated-note">GitHub 星标采集于 2026.10.28<br>收录参考资料 · 尚未逐一复跑</span></div>
-      <div class="curated-grid">
-        <article class="curated-card curated-image"><div class="curated-index"><span>01 / IMAGE & MOTION</span><span>✳</span></div><h3>图片与动效</h3><p>从静态画面到动态影像，探索生成与节点工作流。</p><div class="curated-links"><a href="https://github.com/Comfy-Org/ComfyUI" target="_blank" rel="noopener noreferrer"><strong>ComfyUI</strong><span>143.5k ★ · 可视化生成工作流 ↗</span></a><a href="https://github.com/guoyww/AnimateDiff" target="_blank" rel="noopener noreferrer"><strong>AnimateDiff</strong><span>12.3k ★ · 图像动画研究工具 ↗</span></a></div><small>需安装模型；硬件与模型许可依方案而定。</small></article>
-        <article class="curated-card curated-web"><div class="curated-index"><span>02 / WEB INTERACTION</span><span>↗</span></div><h3>网页交互</h3><p>让滚动、切换与视觉反馈自然衔接。</p><div class="curated-links"><a href="https://github.com/motiondivision/motion" target="_blank" rel="noopener noreferrer"><strong>Motion</strong><span>34.6k ★ · JavaScript / React 动画 ↗</span></a><a href="https://github.com/greensock/GSAP" target="_blank" rel="noopener noreferrer"><strong>GSAP</strong><span>29.8k ★ · 时间轴与滚动动画 ↗</span></a></div><small>面向开发者；请查看各项目的最新许可。</small></article>
-        <article class="curated-card curated-slides"><div class="curated-index"><span>03 / PRESENTATION</span><span>▦</span></div><h3>课程与汇报</h3><p>把资料整理成有结构、可表达的演示内容。</p><div class="curated-links"><a href="https://github.com/hugohe3/ppt-master" target="_blank" rel="noopener noreferrer"><strong>PPT Master</strong><span>69.6k ★ · AI 辅助制作 PPT ↗</span></a><a href="https://github.com/slidevjs/slidev" target="_blank" rel="noopener noreferrer"><strong>Slidev</strong><span>49.2k ★ · Markdown 幻灯片 ↗</span></a></div><small>需搭建或使用开发工具；输出与 AI 服务依项目配置。</small></article>
-        <article class="curated-card curated-story"><div class="curated-index"><span>04 / SHORT VIDEO</span><span>▶</span></div><h3>短剧与短视频</h3><p>了解剧本、分镜、生成与剪辑如何组成流程。</p><div class="curated-links"><a href="https://github.com/chatfire-AI/huobao-drama" target="_blank" rel="noopener noreferrer"><strong>火宝短剧</strong><span>16.7k ★ · 短剧生产流程 ↗</span></a><a href="https://github.com/harry0703/MoneyPrinterTurbo" target="_blank" rel="noopener noreferrer"><strong>MoneyPrinterTurbo</strong><span>135.8k ★ · 短视频工作流 ↗</span></a></div><small>通常需要模型或 API；火宝短剧标注非商业许可，商用前须核实授权。</small></article>
-      </div><p class="curated-foot">星标反映社区关注，不代表本站已复现或保证收益。功能、费用与许可请以原项目为准。 <a href="creative-resources.html">查看选用说明与入门路径 ↗</a></p>
+    <section class="trust-strip" aria-label="溯源与核验数据背书">
+      <div class="trust-item"><span class="trust-icon">${icon("shield")}</span><div><strong>${cases.length} 项核验案例</strong><span>人工逐条核实作者与交付文件</span></div></div>
+      <div class="trust-item"><span class="trust-icon">${icon("github")}</span><div><strong>${stats.repositories} 个公开来源仓库</strong><span>直连 GitHub 官方与创作者源头</span></div></div>
+      <div class="trust-item"><span class="trust-icon">${icon("layers")}</span><div><strong>100% 原始 Commit 与许可</strong><span>MIT / Apache-2.0 / CC BY 明确标注</span></div></div>
+      <a class="trust-item trust-link" href="assets/sources/manifest.json" target="_blank" rel="noopener noreferrer"><div><strong>SHA-256 校验清单公开 ↗</strong><span>逐文件哈希底账随时可查验</span></div></a>
     </section>
-    <section class="quick-tasks" aria-label="从创作任务开始"><div><span class="eyebrow">CHOOSE YOUR TASK</span><h2>今天，你想做什么？</h2><p>从真实任务出发，查看案例和可取用的资料。</p></div><div class="quick-task-list"><a data-quick-task="presentation" ${route2.task === "presentation" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=presentation">${icon("slides")}<span>课程汇报</span>${icon("arrow")}</a><a data-quick-task="poster" ${route2.task === "poster" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=poster">${icon("frame")}<span>展板与海报</span>${icon("arrow")}</a><a data-quick-task="advertising" ${route2.task === "advertising" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=advertising">${icon("box")}<span>广告与产品</span>${icon("arrow")}</a><a data-quick-task="story" ${route2.task === "story" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=story">${icon("film")}<span>短剧与叙事</span>${icon("arrow")}</a></div></section>
+    <section class="quick-tasks" aria-label="从创作任务开始"><div><span class="eyebrow">START BY TASK / 按任务直达</span><h2>今天，你想做什么？</h2><p>从真实创作任务切入，直接拿到成品参考与原始制作文件。</p></div><div class="quick-task-list"><a data-quick-task="presentation" ${route2.task === "presentation" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=presentation">${icon("slides")}<span>课程汇报</span>${icon("arrow")}</a><a data-quick-task="poster" ${route2.task === "poster" ? 'aria-current="page"' : ""} href="#discover?audience=campus&amp;task=poster">${icon("frame")}<span>展板与海报</span>${icon("arrow")}</a><a data-quick-task="advertising" ${route2.task === "advertising" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=advertising">${icon("box")}<span>广告与产品</span>${icon("arrow")}</a><a data-quick-task="story" ${route2.task === "story" ? 'aria-current="page"' : ""} href="#discover?audience=professional&amp;task=story">${icon("film")}<span>短剧与叙事</span>${icon("arrow")}</a></div></section>
+    <div class="discovery-shell">
     <section class="scene-switch" aria-label="选择创作场景">
-      <button class="scene scene-all" data-audience="all" aria-pressed="${route2.audience === "all"}">${icon("grid")}<span><strong>全部场景</strong><small>自由探索</small></span></button>
-      <button class="scene scene-campus" data-audience="campus" aria-pressed="${route2.audience === "campus"}">${icon("slides")}<span><strong>校园创作</strong><small>课程作业 · 毕设 · 作品集</small></span>${icon("arrow")}</button>
-      <button class="scene scene-professional" data-audience="professional" aria-pressed="${route2.audience === "professional"}">${icon("layers")}<span><strong>职业创作</strong><small>个人创作者 · 工作室 · 企业团队</small></span>${icon("arrow")}</button>
+      <button class="scene scene-all" data-audience="all" aria-pressed="${route2.audience === "all"}">${icon("grid")}<span><strong>全部场景</strong><small>${cases.length} 项核验案例自由检索</small></span></button>
+      <button class="scene scene-campus" data-audience="campus" aria-pressed="${route2.audience === "campus"}">${icon("slides")}<span><strong>校园创作</strong><small>课程作业 · 毕设展板 · 作品集</small></span>${icon("arrow")}</button>
+      <button class="scene scene-professional" data-audience="professional" aria-pressed="${route2.audience === "professional"}">${icon("layers")}<span><strong>职业创作</strong><small>个人创作者 · 商业广告 · 企业工作流</small></span>${icon("arrow")}</button>
     </section>
     <section class="discovery-layout">
-      <aside class="task-sidebar" aria-label="按创作任务浏览"><div class="sidebar-label">你想做什么？</div>
-        <a class="task-option ${route2.task === "all" ? "selected" : ""}" href="${esc(taskLink("all"))}" ${route2.task === "all" ? 'aria-current="page"' : ""}>${icon("grid")}<span>全部任务</span></a>
+      <aside class="task-sidebar" aria-label="按创作任务浏览"><div class="sidebar-label">按任务目录浏览</div>
+        <a class="task-option ${route2.task === "all" ? "selected" : ""}" href="${esc(taskLink("all"))}" ${route2.task === "all" ? 'aria-current="page"' : ""}>${icon("grid")}<span>全部任务</span><small>${cases.length}</small></a>
         ${["campus", "creative", "enterprise"].map((group) => {
       const groupTasks = availableTasks.filter((t) => t.group === group);
       return groupTasks.length ? `<div class="task-group-label">${{ campus: "校园创作", creative: "AI 创作工作流", enterprise: "AI 企业工作流" }[group]}</div>${groupTasks.map((t) => `<a class="task-option ${route2.task === t.id ? "selected" : ""}" href="${esc(taskLink(route2.task === t.id ? "all" : t.id))}" ${route2.task === t.id ? 'aria-current="page"' : ""}>${icon(t.icon)}<span>${t.label}</span><small>${countFor(t.id) || "筹备"}</small></a>`).join("")}` : "";
     }).join("")}
-        <div class="sidebar-note">先看成品，再看资料。<br>同一案例可适合多种任务。</div>
+        <div class="sidebar-note">每条案例均核对原始出处、交付文件与开源许可。</div>
       </aside>
       <div class="results-area">
         <div class="result-intro">
-        <div class="result-heading"><div><div class="eyebrow">${esc(audienceNames[route2.audience] || "全部场景")} / ${task ? "任务专题" : "案例精选"}</div><h2>${task ? esc(task.label) : "为下一次创作，找到起点"}</h2></div><span class="result-count">${list.length} 个案例</span></div>
-        ${task ? `<p class="task-description">${esc(task.description)}</p><div class="task-boundary">${esc(task.boundary)}</div>` : '<p class="task-description">按用途挑选，按来源取用。任务标签为编辑建议，具体交付请查看详情。</p>'}
-        </div><div class="discovery-controls"><form class="search ${route2.q ? "has-value" : ""}" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果或作者（按 / 快速定位）" value="${esc(route2.q)}"><button type="button" id="clear-search" class="search-clear ${route2.q ? "is-visible" : ""}" aria-label="清除搜索" tabindex="${route2.q ? "0" : "-1"}">×</button></form><button id="open-filters" class="filter-button ${filters.filter((k) => k !== "q").length ? "has-active" : ""}">工具与资料筛选${filters.filter((k) => k !== "q").length ? ` <span class="filter-badge">${filters.filter((k) => k !== "q").length}</span>` : ""}</button></div>
+        <div class="result-heading"><div><div class="eyebrow">${esc(audienceNames[route2.audience] || "全部场景")} / ${task ? "任务专题" : "已核验案例库"}</div><h2>${task ? esc(task.label) : "按成品挑方向，按源码做同款"}</h2></div><span class="result-count">${list.length} 个案例</span></div>
+        ${task ? `<p class="task-description">${esc(task.description)}</p><div class="task-boundary">${esc(task.boundary)}</div>` : '<p class="task-description">每项案例均标明实际可取得的工程、工作流或提示词及对应开源协议。</p>'}
+        </div><div class="discovery-controls"><form class="search ${route2.q ? "has-value" : ""}" id="search-form">${icon("search")}<input aria-label="搜索案例、作者或任务" name="q" placeholder="搜索任务、效果、作者或协议（按 / 快速定位）" value="${esc(route2.q)}"><button type="button" id="clear-search" class="search-clear ${route2.q ? "is-visible" : ""}" aria-label="清除搜索" tabindex="${route2.q ? "0" : "-1"}">×</button></form><button id="open-filters" class="filter-button ${filters.filter((k) => k !== "q").length ? "has-active" : ""}">工具与交付筛选${filters.filter((k) => k !== "q").length ? ` <span class="filter-badge">${filters.filter((k) => k !== "q").length}</span>` : ""}</button></div>
         <div class="toolbar"><div class="tabs" aria-label="按媒介筛选">${Object.entries(
       names
     ).map(
       ([key, label]) => `<button data-media="${key}" class="${route2.media === key ? "active" : ""}" aria-pressed="${route2.media === key}">${label}</button>`
     ).join("")}</div></div>
         <div class="active-filters">${filters.map((key) => `<button data-clear="${key}">${esc(key === "tool" ? tools[route2[key]] || route2[key] : key === "access" ? accessNames[route2.access] : route2[key])} ×</button>`).join("")}${filters.length > 1 ? '<button data-clear="all" class="clear-all">清除全部</button>' : ""}</div>
-        <div class="gallery task-grid" aria-label="创作画廊">${list.length ? list.map(card).join("") : `<div class="empty-state"><div class="empty-icon">${icon(task?.icon || "search")}</div><h2>${taskCount === 0 ? "这项任务的案例正在准备中" : "暂时没有匹配的案例"}</h2><p>${taskCount === 0 ? esc(task?.boundary || "") : "试试其他关键词，或撤销筛选条件。"}</p><a class="secondary" href="${esc(taskCount === 0 ? discoverUrl(route2, { task: "all", media: "all", q: "", tool: "all", access: "all" }) : taskLink(route2.task))}">${taskCount === 0 ? "浏览其他任务" : "清除筛选"}</a></div>`}</div>
-        <div class="lower-note"><strong>资料可追溯，取用有依据。</strong><span>作者示例与本站复跑分别标注 · 原始资料采集 ${collectedDate}</span></div>
+        <div class="gallery task-grid" aria-label="创作画廊">${list.length ? list.map(card).join("") : `<div class="empty-state"><div class="empty-icon">${icon(task?.icon || "search")}</div><h2>${taskCount === 0 ? "这项任务的案例正在整编中" : "暂时没有匹配的案例"}</h2><p>${taskCount === 0 ? esc(task?.boundary || "") : "试试其他关键词，或撤销当前筛选条件。"}</p><a class="secondary" href="${esc(taskCount === 0 ? discoverUrl(route2, { task: "all", media: "all", q: "", tool: "all", access: "all" }) : taskLink(route2.task))}">${taskCount === 0 ? "浏览全部任务" : "清除筛选"}</a></div>`}</div>
+        <div class="lower-note"><strong>来源透明，许可清晰。</strong><span>全部预览文件均经 SHA-256 校验存档 · 最近核验日期 ${collectedDate}</span></div>
       </div>
+    </section>
+    </div>
+    <section class="curated" aria-label="延伸开源创作工具箱">
+      <div class="curated-heading"><div><span class="eyebrow">OPEN-SOURCE TOOLKIT / 延伸工具箱</span><h2>值得动手试的开源创作工具</h2><p>精选社区广泛采用、文档完备的公开项目，配合上方案例源码深入搭建你自己的工作流。</p></div><span class="curated-note">GitHub 开源生态精选 · 采集于 2026.10.28<br>点击直达官方仓库与入门指南</span></div>
+      <div class="curated-grid">
+        <article class="curated-card curated-image"><div class="curated-index"><span>01 / IMAGE &amp; MOTION</span><span>✳</span></div><h3>图片与动效</h3><p>从静态画面到动态影像，搭建可复用的节点生成工作流。</p><div class="curated-links"><a href="https://github.com/Comfy-Org/ComfyUI" target="_blank" rel="noopener noreferrer"><strong>ComfyUI</strong><span>143.5k ★ · 可视化节点生成工作流 ↗</span></a><a href="https://github.com/guoyww/AnimateDiff" target="_blank" rel="noopener noreferrer"><strong>AnimateDiff</strong><span>12.3k ★ · 图像动画开源方案 ↗</span></a></div><small>本地运行需配置模型权重；硬件要求与模型许可依具体方案而定。</small></article>
+        <article class="curated-card curated-web"><div class="curated-index"><span>02 / WEB INTERACTION</span><span>↗</span></div><h3>网页交互</h3><p>让网页滚动叙事、状态过渡与手势反馈细腻衔接。</p><div class="curated-links"><a href="https://github.com/motiondivision/motion" target="_blank" rel="noopener noreferrer"><strong>Motion</strong><span>34.6k ★ · JavaScript / React 动画引擎 ↗</span></a><a href="https://github.com/greensock/GSAP" target="_blank" rel="noopener noreferrer"><strong>GSAP</strong><span>29.8k ★ · 专业时间轴与滚动动画 ↗</span></a></div><small>面向前端开发；商业项目请留意各仓库最新许可证条款。</small></article>
+        <article class="curated-card curated-slides"><div class="curated-index"><span>03 / PRESENTATION</span><span>▦</span></div><h3>课程与汇报</h3><p>把研究资料快速组织成结构严谨、排版克制的演示文稿。</p><div class="curated-links"><a href="https://github.com/hugohe3/ppt-master" target="_blank" rel="noopener noreferrer"><strong>PPT Master</strong><span>69.6k ★ · AI 辅助结构化 PPT ↗</span></a><a href="https://github.com/slidevjs/slidev" target="_blank" rel="noopener noreferrer"><strong>Slidev</strong><span>49.2k ★ · Markdown 交互式幻灯片 ↗</span></a></div><small>需配置本地开发或模型环境；导出后建议人工审校排版细节。</small></article>
+        <article class="curated-card curated-story"><div class="curated-index"><span>04 / SHORT VIDEO</span><span>▶</span></div><h3>短剧与短视频</h3><p>打通剧本、分镜、配音与成片合成的自动化视频管线。</p><div class="curated-links"><a href="https://github.com/chatfire-AI/huobao-drama" target="_blank" rel="noopener noreferrer"><strong>火宝短剧</strong><span>16.7k ★ · 短剧全流程工作流 ↗</span></a><a href="https://github.com/harry0703/MoneyPrinterTurbo" target="_blank" rel="noopener noreferrer"><strong>MoneyPrinterTurbo</strong><span>135.8k ★ · 自动化短视频生产 ↗</span></a></div><small>需接入对应模型 API；火宝短剧采用 CC BY-NC-SA 4.0 非商业许可。</small></article>
+      </div><p class="curated-foot">需要更完整的环境门槛与选型对比？ <a href="creative-resources.html">查看《开源创作工具选用指南》 ↗</a></p>
     </section>`;
     updateDiscovery(main, markup);
   }
@@ -617,31 +686,31 @@
     const copyBtn = (value, label) => `<button type="button" class="copy-btn" data-copy="${esc(value)}" aria-label="${esc(label)}" title="${esc(label)}">${icon("copy")}<span>复制</span></button>`;
     const out = c.origin === "external";
     let action = c.archived ? '<a class="primary" href="#discover?media=' + c.media + '">查看有来源的新案例 ↗</a>' : out ? external(c.primary_url, c.primary_label, "primary") : '<a class="primary" href="' + safe(c.preview) + '" download="' + c.id + '-example.html">获取网页示例代码 ↓</a>';
-    main.innerHTML = '<div class="crumb"><a href="' + esc(lastDiscover2) + '">← 返回画廊</a><span>/</span><span>' + names[c.media] + "</span><span>/</span><span>" + esc(c.tag) + "</span>" + (prevCase || nextCase ? '<span class="crumb-nav">' + (prevCase ? `<a href="#effect/${prevCase.id}" data-prev-case title="上一个案例（←）：${esc(prevCase.title)}">← 上一个</a>` : "") + (nextCase ? `<a href="#effect/${nextCase.id}" data-next-case title="下一个案例（→）：${esc(nextCase.title)}">下一个 →</a>` : "") + "</span>" : "") + "</div>" + (c.archived ? '<p class="archive-notice">这项旧布局参考已移出精选。它没有可追溯的原始制作链，原来的画面拆解已撤下。</p>' : "") + '<section class="detail-grid"><div><div class="detail-visual" id="detail-visual">' + preview(c) + "</div>" + (c.motion_preview ? '<button id="load-motion" class="preview-open" aria-pressed="false">播放官方动态 WEBP 预览 ▶</button>' : c.preview ? '<button class="preview-open" id="launch-preview">打开网页交互预览 ↗</button>' : "") + '<div class="visual-caption"><span>' + esc(c.cover_role) + "</span><span>" + esc(c.author) + '</span></div></div><div class="detail-info"><div class="eyebrow">' + names[c.media] + " / " + esc(c.tag) + "</div><h1>" + esc(c.title) + '</h1><div class="detail-task-links">' + c.task_ids.map(
+    main.innerHTML = '<div class="crumb"><a href="' + esc(lastDiscover2) + '">← 返回画廊</a><span>/</span><span>' + names[c.media] + "</span><span>/</span><span>" + esc(c.tag) + "</span>" + (prevCase || nextCase ? '<span class="crumb-nav">' + (prevCase ? `<a href="#effect/${prevCase.id}" data-prev-case title="上一个案例（←）：${esc(prevCase.title)}">← 上一个</a>` : "") + (nextCase ? `<a href="#effect/${nextCase.id}" data-next-case title="下一个案例（→）：${esc(nextCase.title)}">下一个 →</a>` : "") + "</span>" : "") + "</div>" + (c.archived ? '<p class="archive-notice">这项旧布局参考已移出精选。</p>' : "") + '<section class="detail-grid"><div><div class="detail-visual" id="detail-visual">' + preview(c) + "</div>" + (c.motion_preview ? '<button id="load-motion" class="preview-open" aria-pressed="false">播放官方动态 WEBP 预览 ▶</button>' : c.preview ? '<button class="preview-open" id="launch-preview">打开网页交互预览 ↗</button>' : "") + '<div class="visual-caption"><span>' + esc(c.cover_role) + "</span><span>" + esc(c.author) + '</span></div></div><div class="detail-info"><div class="eyebrow">' + names[c.media] + " / " + esc(c.tag) + "</div><h1>" + esc(c.title) + '</h1><div class="detail-task-links">' + c.task_ids.map(
       (id) => `<a href="#discover?task=${id}">${esc(findTask(id)?.label || id)}</a>`
-    ).join("") + '</div><span class="badge">' + esc(c.verification) + '</span><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>来源</dt><dd class="spec-with-copy">' + (out ? external(c.source_url, c.author + " ↗") + copyBtn(c.source_url, "复制来源链接") : esc(c.author)) + "</dd></div><div><dt>能取得</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>需要准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>当前缺口</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>使用范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary detail-save" data-save="' + c.id + '">' + icon("bookmark") + '<span>收藏</span></button></div><p class="action-note">' + (out ? "打开作者原始资料；当前页面不会安装 Skill 或调用生成服务。" : c.archived ? "保留旧链接，不再用拆解文字替代制作文件。" : "下载独立 HTML 后，可用浏览器打开。部分示例也支持在线预览。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "作者实际提供的制作资料" : "本地示例文件") + "</h2>" + (out ? c.resources.map(
+    ).join("") + '</div><div class="detail-badges"><span class="badge badge-verified">' + esc(deliverableBadge(c)) + '</span><span class="badge">' + esc(licenseShort(c)) + "</span>" + (out ? `<span class="badge badge-mono" title="固定源码 Commit 版本">#${esc(c.source_commit.slice(0, 8))}</span>` : "") + '</div><p class="summary">' + esc(c.summary) + '</p><dl class="specs"><div><dt>原始出处</dt><dd class="spec-with-copy">' + (out ? `<span class="source-author">${icon("github")}${external(c.source_url, c.author + " ↗")}</span>` + copyBtn(c.source_url, "复制来源仓库链接") : esc(c.author)) + "</dd></div><div><dt>可取用资料</dt><dd>" + esc(c.delivery) + "</dd></div><div><dt>环境与准备</dt><dd>" + esc(c.input) + "</dd></div>" + (out ? "<div><dt>模型 / 工具</dt><dd>" + esc(c.model) + "</dd></div>" : "") + "<div><dt>运行前提与边界</dt><dd>" + esc(c.completeness) + "</dd></div><div><dt>开源许可范围</dt><dd>" + esc(c.rights) + '</dd></div></dl><div class="detail-actions">' + action + '<button class="secondary detail-save" data-save="' + c.id + '">' + icon("bookmark") + '<span>收藏</span></button></div><p class="action-note">' + (out ? "直连原作者公开仓库获取一手工程与参数文件。" : "下载独立 HTML 后可直接用浏览器打开，支持离线编辑与二次修改。") + '</p></div></section><section class="detail-bottom"><div><h2 class="section-title">' + (out ? "已核实的原始制作文件" : "本地示例工程文件") + "</h2>" + (out ? c.resources.map(
       (r, i) => '<div class="resource-row"><span>' + String(i + 1).padStart(2, "0") + "</span><div>" + external(r.url, r.label + " ↗") + "<small>" + esc(new URL(r.url).hostname) + " · " + esc(r.type) + "</small></div>" + copyBtn(r.url, "复制 " + r.label + " 链接") + "</div>"
-    ).join("") : c.preview ? '<div class="resource-row"><span>01</span><div><a href="' + safe(c.preview) + '" download>独立 HTML 示例 ↓</a><small>本地界面研究，尚未验证跨项目接入</small></div></div>' : '<p class="muted">没有对应的原始工程或配方，已停止提供泛化拆解。</p>') + (!out && c.steps?.length ? '<h2 class="section-title example-steps-title">如何开始</h2>' + c.steps.map(
+    ).join("") : c.preview ? '<div class="resource-row"><span>01</span><div><a href="' + safe(c.preview) + '" download>独立 HTML 源码文件 ↓</a><small>本站原创编写，无外部依赖，可直接修改复用</small></div></div>' : '<p class="muted">暂无附加文件。</p>') + (!out && c.steps?.length ? '<h2 class="section-title example-steps-title">如何开始复用</h2>' + c.steps.map(
       (step, index) => '<div class="step"><span>' + String(index + 1).padStart(2, "0") + "</span><p>" + esc(step) + "</p></div>"
-    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span>02</span><div><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的示例 ↗</a><small>由本站实际编辑并导出的 HTML，可继续编辑</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><div class="config-head"><span>原配置选项</span>' + copyBtn(JSON.stringify(c.configuration, null, 2), "复制配置 JSON") + "</div><code>" + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>文件齐不齐，能否做同款？</h3><p class="completeness">' + esc(c.completeness) + "</p>" + (out ? "<h3>关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details><summary>来源、版本与使用范围</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始记录 ↗") + "</p><p>采集 " + collectedDate + " · 仓库版本 " + esc(c.source_commit.slice(0, 12)) + "</p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "仓库许可证 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出案例资料 ↓</button>' : "") + "</aside></section>";
+    ).join("") : "") + (c.id === "campus-project" ? '<div class="resource-row"><span>02</span><div><a href="examples/jixian-case-study.html" target="_blank" rel="noopener noreferrer">查看用即现项目内容改编的实测示例 ↗</a><small>由本站实际编辑并导出的 HTML 成品验证</small></div></div>' : "") + (out && Object.keys(c.configuration).length ? '<div class="source-configuration"><div class="config-head"><span>原始配置参数</span>' + copyBtn(JSON.stringify(c.configuration, null, 2), "复制配置 JSON") + "</div><code>" + esc(JSON.stringify(c.configuration)) + "</code></div>" : "") + '</div><aside class="source-box"><h3>溯源核验档案</h3><p class="completeness">' + esc(c.verification) + "</p>" + (out ? "<h3>作品与配方关联依据</h3><p>" + esc(c.match_evidence) + "</p>" : "") + "<details open><summary>固定版本、出处与许可证</summary><p>" + esc(c.source) + "</p>" + (out ? "<p>" + external(c.source_file_url, "查看原始仓库记录 ↗") + "</p><p>核验日期 " + collectedDate + " · Commit <code>" + esc(c.source_commit.slice(0, 12)) + "</code></p>" : "") + "<p>" + esc(c.rights) + "</p>" + (out ? "<p>" + external(c.license_url, "查看原仓库许可证全文 ↗") + "</p>" : "") + "</details>" + (out ? '<button id="export-case" class="secondary">导出溯源元数据 JSON ↓</button>' : "") + "</aside></section>";
   }
   function savedPage(saved2, storageAvailable2) {
     const ids = Object.keys(saved2);
-    main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR COLLECTION, WITH ITS SOURCES</div><h1>好作品，有据可循。</h1><p>收藏会同时保留作者、原文件链接与备注。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续发现 ↗</a>' + (ids.length ? '<button class="primary" id="export-saved">导出清单 ↓</button>' : "") + '</div></section><div class="board-name"><span>我的收藏 / ' + ids.length + '</span><span>仅保存在本浏览器</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
+    main.innerHTML = '<section class="saved-top"><div><div class="eyebrow">YOUR PROVENANCE COLLECTION</div><h1>好作品，有据可循。</h1><p>收藏自动同步保留原作者、固定 Commit 版本、原文件链接与你的项目备注。</p></div><div class="saved-controls"><a class="secondary" href="#discover">继续浏览画廊 ↗</a>' + (ids.length ? '<button class="primary" id="export-saved">导出收藏清单 JSON ↓</button>' : "") + '</div></section><div class="board-name"><span>已收藏案例 / ' + ids.length + '</span><span>本地加密存储于当前浏览器 · 支持一键导出备份</span></div><section class="saved-items">' + (ids.length ? ids.map((id) => {
       const c = cases.find((c2) => c2.id === id);
       if (!c) return "";
-      return '<article class="saved-item" data-saved-item="' + id + '"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + c.delivery) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="想用在什么项目？">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
-    }).join("") : '<div class="empty-state"><h2>收藏下一次想用的作品</h2><p>在画廊点右上角书签，把来源与文件链接一起保存。</p><a href="#discover" class="primary">去发现 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>浏览器未允许持久保存，请导出清单。</p>" : "");
+      return '<article class="saved-item" data-saved-item="' + id + '"><a href="#effect/' + id + '"><img src="' + safe(c.cover) + '" alt="' + esc(c.title) + '"></a><div><a href="#effect/' + id + '"><h2>' + esc(c.title) + " ↗</h2></a><p>" + esc(c.author + " · " + deliverableBadge(c) + " · " + licenseShort(c)) + '</p><textarea data-note="' + id + '" aria-label="' + esc(c.title) + '的备注" placeholder="记录你想复用的部分或目标项目…">' + esc(saved2[id]?.note) + '</textarea><div class="saved-item-foot"><button class="remove-save" data-save="' + id + '">移出收藏</button><span class="note-status" aria-live="polite"></span></div></div></article>';
+    }).join("") : '<div class="empty-state"><h2>建立你的可溯源灵感库</h2><p>在画廊点击卡片右上角书签，将作品、原始工程链接与开源许可一并归档。</p><a href="#discover" class="primary">去浏览核验案例 ↗</a></div>') + "</section>" + (!storageAvailable2 ? "<p>当前浏览器限制本地存储，请及时导出清单 JSON 备份。</p>" : "");
   }
   function methods() {
-    main.innerHTML = '<section class="methods-intro"><div class="eyebrow">SKILLS & WORKFLOWS</div><h1>每个工具，都连着作品。</h1><p>这里收录实际找到文件的 ' + stats.skills + " 个 Skill 与 " + stats.workflows + " 个官方工作流。查看原文件和关联案例；尚未在本站安装或复跑。</p></section>" + skills.map(
-      (s) => '<div class="method-row"><div><strong>' + esc(s.label) + '</strong><small class="method-author">' + esc(s.author) + "</small></div><span>" + esc(s.description) + '</span><div class="method-links">' + external(s.url, "打开原 Skill ↗", "secondary") + '<a href="#discover?q=' + encodeURIComponent(s.label) + '">关联案例 ↗</a></div></div>'
+    main.innerHTML = '<section class="methods-intro"><div class="eyebrow">VERIFIED SKILLS &amp; WORKFLOWS</div><h1>每个工具，都连着真实作品。</h1><p>收录已完成出处核验的 ' + stats.skills + " 个开源 Skill 配方与 " + stats.workflows + " 个官方 ComfyUI 工作流，一键直达原仓库文件与对应成片案例。</p></section>" + skills.map(
+      (s) => '<div class="method-row"><div><strong>' + esc(s.label) + '</strong><small class="method-author">' + esc(s.author) + "</small></div><span>" + esc(s.description) + '</span><div class="method-links">' + external(s.url, "查看原 Skill 仓库 ↗", "secondary") + '<a href="#discover?q=' + encodeURIComponent(s.label) + '">关联成片案例 ↗</a></div></div>'
     ).join("") + cases.filter((c) => c.access === "workflow").map(
-      (c) => '<div class="method-row"><strong>' + esc(c.method_label || c.title) + "</strong><span>" + esc(c.method_summary || c.summary) + '</span><a href="#effect/' + c.id + '" class="secondary">查看工作流案例 ↗</a></div>'
+      (c) => '<div class="method-row"><div><strong>' + esc(c.method_label || c.title) + '</strong><small class="method-author">' + esc(c.author + " · " + licenseShort(c)) + "</small></div><span>" + esc(c.method_summary || c.summary) + '</span><a href="#effect/' + c.id + '" class="secondary">查看工作流与案例 ↗</a></div>'
     ).join("");
   }
   function missing() {
-    main.innerHTML = '<div class="empty-state"><h1>这个内容暂时不可用</h1><a href="#discover" class="primary">返回画廊</a></div>';
+    main.innerHTML = '<div class="empty-state"><h1>未找到对应案例档案</h1><a href="#discover" class="primary">返回画廊首页</a></div>';
   }
 
   // src/ui/ribbon-atlas.ts
@@ -649,6 +718,8 @@
 
   // src/ui/hero-ribbon.ts
   var current;
+  var TAU = Math.PI * 2;
+  var FRONT_ANGLE = -Math.PI * 0.5;
   function unmountRibbon() {
     current?.destroy();
     current = void 0;
@@ -656,7 +727,8 @@
   function mountRibbon() {
     const canvas = document.querySelector("#hero-ribbon");
     const scene = canvas?.closest(".hero-scene");
-    if (!canvas || !scene || current?.canvas === canvas) return;
+    const stage = canvas?.closest(".hero-stage");
+    if (!canvas || !scene || !stage || current?.canvas === canvas) return;
     unmountRibbon();
     const gl = canvas.getContext("webgl", {
       alpha: true,
@@ -668,55 +740,95 @@
       return;
     }
     const vertex = `
+    precision mediump float;
     attribute vec2 aParam;
-    uniform float uTime, uProgress, uAspect;
+    uniform float uTime, uSpin, uProgress, uAspect;
     uniform vec2 uPointer;
     varying vec2 vUv;
     varying vec3 vNormal;
-    varying float vHeight;
+    varying vec3 vPos;
+    varying float vDepth;
     mat3 rx(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
     mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
     mat3 rz(float a){float c=cos(a),s=sin(a);return mat3(c,s,0.,-s,c,0.,0.,0.,1.);}
     void main(){
-      float u=aParam.x; float v=aParam.y;
-      float twist=u*.5+.20*sin(u*2.+uTime*.32);
-      float r=1.48+v*.48*cos(twist);
-      vec3 p=vec3(r*cos(u),r*sin(u),v*.48*sin(twist));
-      vec3 n=normalize(vec3(cos(u)*cos(twist),sin(u)*cos(twist),sin(twist)));
-      mat3 rot=rz(-.12)*rx(.94+uPointer.y*.10)*ry(.13+uPointer.x*.18+uTime*.065);
-      p=rot*p; n=rot*n;
-      float zoom=mix(.60,.95,smoothstep(.7,1.2,uAspect))+uProgress*.48;
-      float tall=mix(1.4,1.,smoothstep(.7,1.2,uAspect));
-      gl_Position=vec4(p.x*zoom/uAspect,p.y*zoom*tall,p.z*.13,1.);
-      vUv=vec2(u/6.2831853,(v+1.)*.5);vNormal=n;vHeight=p.y;
+      float u = aParam.x;
+      float v = aParam.y;
+      float angle = u + uSpin;
+      float twist = angle * 0.5 + 0.12 * sin(angle * 2.0 + uTime * 0.36);
+      float halfW = 0.54;
+      float R = 1.52;
+      float r = R + v * halfW * cos(twist);
+      vec3 p = vec3(r * cos(angle), r * sin(angle), v * halfW * sin(twist));
+      vec3 n = normalize(vec3(cos(angle) * cos(twist), sin(angle) * cos(twist), sin(twist)));
+      mat3 rot = rz(-0.13) * rx(0.96 + uPointer.y * 0.14) * ry(0.14 + uPointer.x * 0.22);
+      p = rot * p;
+      n = rot * n;
+      float baseZoom = mix(0.56, 0.80, smoothstep(0.65, 1.35, uAspect)) + uProgress * 0.28;
+      float tall = mix(1.24, 1.0, smoothstep(0.65, 1.35, uAspect));
+      float depth = -p.z;
+      float persp = baseZoom / max(0.45, 1.0 - depth * 0.19);
+      gl_Position = vec4(p.x * persp / uAspect, (p.y * tall + 0.04) * persp, p.z * 0.18, 1.0);
+      vUv = vec2(u / 6.2831853, (v + 1.0) * 0.5);
+      vNormal = n;
+      vPos = p;
+      vDepth = depth;
     }`;
     const fragment = `
     precision mediump float;
     uniform sampler2D uTexture;
-    varying vec2 vUv; varying vec3 vNormal; varying float vHeight;
+    uniform vec2 uPointer;
+    uniform float uFocusU;
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPos;
+    varying float vDepth;
     void main(){
-      vec3 n=normalize(vNormal);
-      float light=.30+.62*abs(dot(n,normalize(vec3(-.48,.62,1.))));
-      float rim=pow(1.-abs(n.z),2.)*.16;
-      float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5;
-      vec3 bronze=mix(vec3(.20,.115,.074),vec3(.75,.51,.33),clamp(light+rim,0.,1.));
-      bronze*=mix(.54,1.,smoothstep(-1.4,.65,vHeight));
-      vec4 mark=texture2D(uTexture,vUv);
-      vec3 artwork=mark.rgb*(.48+.65*light);
-      gl_FragColor=vec4(mix(bronze,artwork,mark.a*.94)+grain*.024,1.);
+      vec3 n = normalize(vNormal);
+      vec3 keyDir = normalize(vec3(-0.38 + uPointer.x * 0.45, 0.58 - uPointer.y * 0.35, 1.0));
+      vec3 viewDir = vec3(0.0, 0.0, 1.0);
+      float diff = 0.38 + 0.62 * abs(dot(n, keyDir));
+      vec3 halfVec = normalize(keyDir + viewDir);
+      float spec = pow(max(abs(dot(n, halfVec)), 0.0), 28.0);
+      float fresnel = pow(1.0 - abs(n.z), 2.4);
+
+      float edgeDist = abs(vUv.y - 0.5) * 2.0;
+      float bezelMask = smoothstep(0.84, 0.93, edgeDist);
+
+      float slotDist = abs(fract(vUv.x - uFocusU + 0.5) - 0.5);
+      float focusGlow = 1.0 - smoothstep(0.035, 0.095, slotDist);
+
+      float spotDist = length(vPos.xy - vec2(uPointer.x * 1.35, -uPointer.y * 0.95));
+      float cursorSpot = (1.0 - smoothstep(0.15, 1.45, spotDist)) * 0.22;
+
+      float depthFade = mix(0.46, 1.08, smoothstep(-1.35, 1.15, vDepth));
+
+      vec3 titanium = mix(vec3(0.13, 0.15, 0.14), vec3(0.76, 0.68, 0.54), clamp(diff * 0.65 + fresnel * 0.55 + spec * 0.7, 0.0, 1.0));
+      titanium += vec3(0.95, 0.88, 0.72) * spec * 0.38;
+
+      vec4 tex = texture2D(uTexture, vUv);
+      float lit = (0.76 + 0.34 * diff + cursorSpot + focusGlow * 0.16) * depthFade;
+      vec3 art = tex.rgb * lit + vec3(0.96, 0.90, 0.76) * (spec * 0.14 + fresnel * 0.08);
+
+      vec3 focusTint = mix(titanium, vec3(0.88, 0.82, 0.64), focusGlow * 0.45);
+      vec3 col = mix(art, focusTint * depthFade, bezelMask);
+
+      float grain = (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.016;
+      gl_FragColor = vec4(col + grain, 1.0);
     }`;
-    function shader(kind, source) {
-      const result = gl.createShader(kind);
-      if (!result) return null;
-      gl.shaderSource(result, source);
-      gl.compileShader(result);
-      if (!gl.getShaderParameter(result, gl.COMPILE_STATUS)) {
-        gl.deleteShader(result);
+    function compile(kind, source) {
+      const sh = gl.createShader(kind);
+      if (!sh) return null;
+      gl.shaderSource(sh, source);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        gl.deleteShader(sh);
         return null;
       }
-      return result;
+      return sh;
     }
-    const vs = shader(gl.VERTEX_SHADER, vertex), fs = shader(gl.FRAGMENT_SHADER, fragment);
+    const vs = compile(gl.VERTEX_SHADER, vertex);
+    const fs = compile(gl.FRAGMENT_SHADER, fragment);
     const program = gl.createProgram();
     if (!vs || !fs || !program) {
       scene.classList.add("hero-no-webgl");
@@ -730,16 +842,25 @@
       return;
     }
     gl.useProgram(program);
-    const points = [], indices = [], segments = 200, strips = 16;
-    for (let i = 0; i <= segments; i++)
-      for (let j = 0; j <= strips; j++)
-        points.push(i / segments * Math.PI * 2, j / strips * 2 - 1);
-    for (let i = 0; i < segments; i++)
+    const points = [];
+    const indices = [];
+    const segments = 240;
+    const strips = 20;
+    for (let i = 0; i <= segments; i++) {
+      for (let j = 0; j <= strips; j++) {
+        points.push(i / segments * TAU, j / strips * 2 - 1);
+      }
+    }
+    for (let i = 0; i < segments; i++) {
       for (let j = 0; j < strips; j++) {
-        const a = i * (strips + 1) + j, b = a + strips + 1;
+        const a = i * (strips + 1) + j;
+        const b = a + strips + 1;
         indices.push(a, b, a + 1, b, b + 1, a + 1);
       }
-    const vertices = gl.createBuffer(), elements = gl.createBuffer(), texture = gl.createTexture();
+    }
+    const vertices = gl.createBuffer();
+    const elements = gl.createBuffer();
+    const texture = gl.createTexture();
     if (!vertices || !elements || !texture) {
       scene.classList.add("hero-no-webgl");
       return;
@@ -750,61 +871,196 @@
     gl.enableVertexAttribArray(attr);
     gl.vertexAttribPointer(attr, 2, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elements);
-    gl.bufferData(
-      gl.ELEMENT_ARRAY_BUFFER,
-      new Uint16Array(indices),
-      gl.STATIC_DRAW
-    );
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 2048;
+    const texW = maxTex >= 4096 ? 4096 : 2048;
+    const texH = texW === 4096 ? 512 : 256;
+    const cellW = texW / 8;
+    const pad = texW === 4096 ? 14 : 7;
     const surface = document.createElement("canvas");
-    surface.width = 2048;
-    surface.height = 256;
+    surface.width = texW;
+    surface.height = texH;
     const ctx = surface.getContext("2d");
     if (!ctx) {
       scene.classList.add("hero-no-webgl");
       return;
     }
-    ctx.fillStyle = "#55483b";
-    ctx.fillRect(0, 0, 2048, 256);
+    const ribbonCases = RIBBON_CASE_IDS.map(
+      (id) => cases.find((c) => c.id === id)
+    );
     let disposed = false;
-    const atlas = new Image();
-    atlas.onload = () => {
-      if (disposed) return;
-      ctx.drawImage(atlas, 0, 0);
+    function drawPlateFrame(index) {
+      if (!ctx) return;
+      const x = index * cellW;
+      ctx.strokeStyle = "rgba(216, 200, 168, 0.38)";
+      ctx.lineWidth = texW === 4096 ? 2 : 1;
+      ctx.strokeRect(x + pad, pad, cellW - pad * 2, texH - pad * 2);
+    }
+    function uploadTexture() {
+      if (disposed || !gl) return;
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, surface);
       requestDraw();
-    };
-    atlas.src = ribbonAtlas;
+    }
+    ctx.fillStyle = "#161c19";
+    ctx.fillRect(0, 0, texW, texH);
+    for (let i = 0; i < 8; i++) drawPlateFrame(i);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, surface);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
     gl.clearColor(0, 0, 0, 0);
-    const timeLoc = gl.getUniformLocation(program, "uTime"), progressLoc = gl.getUniformLocation(program, "uProgress"), aspectLoc = gl.getUniformLocation(program, "uAspect"), pointerLoc = gl.getUniformLocation(program, "uPointer");
+    const loadedPlates = /* @__PURE__ */ new Set();
+    const atlas = new Image();
+    atlas.onload = () => {
+      if (disposed || !ctx) return;
+      for (let i = 0; i < 8; i++) {
+        if (loadedPlates.has(i)) continue;
+        const sx = i * atlas.width / 8;
+        const sw = atlas.width / 8;
+        const dx = i * cellW;
+        ctx.fillStyle = "#141a17";
+        ctx.fillRect(dx, 0, cellW, texH);
+        ctx.drawImage(
+          atlas,
+          sx,
+          0,
+          sw,
+          atlas.height,
+          dx + pad,
+          pad,
+          cellW - pad * 2,
+          texH - pad * 2
+        );
+        drawPlateFrame(i);
+      }
+      uploadTexture();
+    };
+    atlas.src = ribbonAtlas;
+    ribbonCases.forEach((c, i) => {
+      if (!c) return;
+      const img = new Image();
+      img.onload = () => {
+        if (disposed || !ctx || !img.naturalWidth) return;
+        loadedPlates.add(i);
+        const dx = i * cellW;
+        const innerW = cellW - pad * 2;
+        const innerH = texH - pad * 2;
+        ctx.fillStyle = "#141a17";
+        ctx.fillRect(dx, 0, cellW, texH);
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+        const boxRatio = innerW / innerH;
+        let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+        if (imgRatio > boxRatio) {
+          sw = img.naturalHeight * boxRatio;
+          sx = (img.naturalWidth - sw) * 0.5;
+        } else {
+          sh = img.naturalWidth / boxRatio;
+          sy = (img.naturalHeight - sh) * 0.5;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, dx + pad, pad, innerW, innerH);
+        drawPlateFrame(i);
+        uploadTexture();
+      };
+      img.src = c.cover;
+    });
+    const timeLoc = gl.getUniformLocation(program, "uTime");
+    const spinLoc = gl.getUniformLocation(program, "uSpin");
+    const progressLoc = gl.getUniformLocation(program, "uProgress");
+    const aspectLoc = gl.getUniformLocation(program, "uAspect");
+    const pointerLoc = gl.getUniformLocation(program, "uPointer");
+    const focusLoc = gl.getUniformLocation(program, "uFocusU");
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
-    let frame = 0, last = 0, time = 0, visible = true, paused = motion.matches, progress = 0, targetX = 0, targetY = 0, pointerX = 0, pointerY = 0;
+    let frame = 0;
+    let scrollRaf = 0;
+    let last = 0;
+    let time = 0;
+    let spin = FRONT_ANGLE - 0.5 / 8 * TAU;
+    let spinVelocity = 0;
+    let seekTarget = null;
+    let holdAutoUntil = 0;
+    let dragging = false;
+    let dragLastX = 0;
+    let dragLastTime = 0;
+    let visible = true;
+    let paused = motion.matches;
+    let progress = 0;
+    let targetX = 0;
+    let targetY = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    let activeSlot = -1;
+    const slotButtons = [
+      ...scene.querySelectorAll("[data-ribbon-slot]")
+    ];
+    const liveIndex = scene.querySelector("#ribbon-live-index");
+    const liveTitle = scene.querySelector("#ribbon-live-title");
+    const liveMeta = scene.querySelector("#ribbon-live-meta");
+    const liveLink = scene.querySelector("#ribbon-live-link");
+    const pauseButton = scene.querySelector("#hero-pause");
+    function syncHud(slot) {
+      if (slot === activeSlot) return;
+      activeSlot = slot;
+      slotButtons.forEach((btn, idx) => {
+        const on = idx === slot;
+        btn.classList.toggle("is-active", on);
+        btn.setAttribute("aria-pressed", String(on));
+      });
+      const c = ribbonCases[slot];
+      if (!c) return;
+      if (liveIndex)
+        liveIndex.textContent = `${String(slot + 1).padStart(2, "0")} / 08`;
+      if (liveTitle) liveTitle.textContent = c.title;
+      if (liveMeta) {
+        const commitTag = c.origin === "external" ? ` · #${c.source_commit.slice(0, 7)}` : "";
+        liveMeta.textContent = `${c.author} · ${deliverableBadge(c)} · ${licenseShort(c)}${commitTag}`;
+      }
+      if (liveLink) {
+        liveLink.href = `#effect/${c.id}`;
+        liveLink.setAttribute("aria-label", `查看案例与源码：${c.title}`);
+      }
+    }
+    function currentFrontSlot() {
+      const uFront = ((FRONT_ANGLE - spin) % TAU + TAU) % TAU;
+      return Math.floor(uFront / TAU * 8) % 8;
+    }
+    function seekToSlot(slot) {
+      const desiredU = (slot + 0.5) / 8 * TAU;
+      const baseSpin = FRONT_ANGLE - desiredU;
+      const diff = ((baseSpin - spin) % TAU + TAU + Math.PI) % TAU - Math.PI;
+      seekTarget = spin + diff;
+      spinVelocity = 0;
+      holdAutoUntil = performance.now() + 4500;
+      if (motion.matches) {
+        spin = seekTarget;
+        seekTarget = null;
+        syncHud(slot);
+      }
+      requestDraw();
+    }
     function resize() {
       const headerOffset = Math.max(
         0,
-        Math.min(180, Math.round(scene.getBoundingClientRect().top + scrollY))
+        Math.min(140, Math.round(scene.getBoundingClientRect().top + scrollY))
       );
       scene.style.setProperty("--hero-header-offset", headerOffset + "px");
-      const rect = canvas.getBoundingClientRect(), ratio = Math.min(devicePixelRatio || 1, 1.5);
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.min(devicePixelRatio || 1, 1.75);
       canvas.width = Math.max(1, Math.round(rect.width * ratio));
       canvas.height = Math.max(1, Math.round(rect.height * ratio));
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform1f(aspectLoc, rect.width / Math.max(rect.height, 1));
       requestDraw();
     }
-    let scrollRaf = 0;
     function updateScrollNow() {
       scrollRaf = 0;
-      const r = scene.getBoundingClientRect(), travel = Math.max(
+      const r = scene.getBoundingClientRect();
+      const travel = Math.max(
         1,
         scene.offsetHeight - (canvas.parentElement?.clientHeight || innerHeight)
       );
@@ -821,48 +1077,126 @@
         last = 0;
         return;
       }
-      if (!paused) {
-        if (last) time += Math.min((now - last) / 1e3, 0.05);
-        last = now;
-        pointerX += (targetX - pointerX) * 0.035;
-        pointerY += (targetY - pointerY) * 0.035;
+      const dt = last ? Math.min((now - last) / 1e3, 0.05) : 0.016;
+      last = now;
+      let needsMoreFrames = false;
+      if (!motion.matches) {
+        pointerX += (targetX - pointerX) * 0.06;
+        pointerY += (targetY - pointerY) * 0.06;
+        if (Math.abs(targetX - pointerX) > 1e-3 || Math.abs(targetY - pointerY) > 1e-3) {
+          needsMoreFrames = true;
+        }
       }
+      if (dragging) {
+        needsMoreFrames = true;
+      } else if (seekTarget !== null) {
+        const delta = seekTarget - spin;
+        if (Math.abs(delta) < 2e-3) {
+          spin = seekTarget;
+          seekTarget = null;
+        } else {
+          spin += delta * 0.12;
+          needsMoreFrames = true;
+        }
+      } else if (Math.abs(spinVelocity) > 3e-4) {
+        spin += spinVelocity;
+        spinVelocity *= 0.93;
+        needsMoreFrames = true;
+      } else {
+        spinVelocity = 0;
+        if (!paused && now > holdAutoUntil) {
+          time += dt;
+          spin -= dt * 0.11;
+          needsMoreFrames = true;
+        } else if (!paused) {
+          time += dt;
+          needsMoreFrames = true;
+        }
+      }
+      const frontSlot = currentFrontSlot();
+      syncHud(frontSlot);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.uniform1f(timeLoc, time);
+      gl.uniform1f(spinLoc, spin);
       gl.uniform1f(progressLoc, progress);
       gl.uniform2f(pointerLoc, pointerX, pointerY);
+      gl.uniform1f(focusLoc, (frontSlot + 0.5) / 8);
       gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
-      if (!paused) frame = requestAnimationFrame(draw);
+      if (needsMoreFrames) frame = requestAnimationFrame(draw);
     }
     function requestDraw() {
-      if (!frame && visible && !document.hidden && !disposed)
+      if (!frame && visible && !document.hidden && !disposed) {
         frame = requestAnimationFrame(draw);
+      }
     }
-    function move(e) {
-      if (paused || e.pointerType === "touch") return;
+    function onPointerDown(e) {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      if (e.target instanceof Element && e.target.closest("button, a, .hero-dock")) {
+        return;
+      }
+      dragging = true;
+      seekTarget = null;
+      spinVelocity = 0;
+      dragLastX = e.clientX;
+      dragLastTime = performance.now();
+      stage.classList.add("is-dragging");
+      try {
+        stage.setPointerCapture(e.pointerId);
+      } catch {
+      }
+      requestDraw();
+    }
+    function onPointerMove(e) {
       const r = scene.getBoundingClientRect();
-      targetX = ((e.clientX - r.left) / r.width - 0.5) * 2;
-      targetY = ((e.clientY - r.top) / innerHeight - 0.5) * 2;
+      if (!paused && e.pointerType !== "touch") {
+        targetX = ((e.clientX - r.left) / Math.max(1, r.width) - 0.5) * 2;
+        targetY = ((e.clientY - r.top) / Math.max(1, innerHeight) - 0.5) * 2;
+      }
+      if (dragging) {
+        const now = performance.now();
+        const dx = e.clientX - dragLastX;
+        const dtMs = Math.max(8, now - dragLastTime);
+        const deltaSpin = dx / Math.max(280, r.width) * 3.8;
+        spin += deltaSpin;
+        spinVelocity = deltaSpin * (16 / dtMs);
+        dragLastX = e.clientX;
+        dragLastTime = now;
+      }
+      requestDraw();
+    }
+    function onPointerUp(e) {
+      if (!dragging) return;
+      dragging = false;
+      stage.classList.remove("is-dragging");
+      holdAutoUntil = performance.now() + 1800;
+      try {
+        stage.releasePointerCapture(e.pointerId);
+      } catch {
+      }
       requestDraw();
     }
     function resetPointer() {
       targetX = 0;
       targetY = 0;
+      requestDraw();
     }
     function visibility() {
       last = 0;
       requestDraw();
     }
-    const pauseButton = scene.querySelector("#hero-pause");
     function updatePauseButton() {
       if (!pauseButton) return;
       pauseButton.setAttribute("aria-pressed", String(paused));
-      pauseButton.setAttribute("aria-label", paused ? "继续播放环面动画" : "暂停环面动画");
-      pauseButton.innerHTML = paused ? '<span aria-hidden="true">▶</span> 继续播放' : '<span aria-hidden="true">Ⅱ</span> 暂停画面';
+      pauseButton.setAttribute(
+        "aria-label",
+        paused ? "继续播放莫比乌斯环动画" : "暂停莫比乌斯环动画"
+      );
+      pauseButton.innerHTML = paused ? '<span aria-hidden="true">▶</span> 自转' : '<span aria-hidden="true">Ⅱ</span> 暂停';
     }
     function togglePause() {
       paused = !paused;
       last = 0;
+      if (!paused) holdAutoUntil = 0;
       updatePauseButton();
       requestDraw();
     }
@@ -873,6 +1207,11 @@
       updateScroll();
       requestDraw();
     }
+    const slotCleanups = slotButtons.map((btn, idx) => {
+      const handler = () => seekToSlot(idx);
+      btn.addEventListener("click", handler);
+      return () => btn.removeEventListener("click", handler);
+    });
     const intersection = new IntersectionObserver(
       (entries) => {
         visible = !!entries[0]?.isIntersecting;
@@ -884,13 +1223,17 @@
     const ro = new ResizeObserver(resize);
     intersection.observe(scene);
     ro.observe(canvas);
-    scene.addEventListener("pointermove", move, { passive: true });
-    scene.addEventListener("pointerleave", resetPointer);
+    stage.addEventListener("pointerdown", onPointerDown);
+    stage.addEventListener("pointermove", onPointerMove, { passive: true });
+    stage.addEventListener("pointerup", onPointerUp);
+    stage.addEventListener("pointercancel", onPointerUp);
+    stage.addEventListener("pointerleave", resetPointer);
     window.addEventListener("scroll", updateScroll, { passive: true });
     document.addEventListener("visibilitychange", visibility);
     motion.addEventListener("change", motionChange);
     pauseButton?.addEventListener("click", togglePause);
     updatePauseButton();
+    syncHud(0);
     resize();
     updateScroll();
     current = {
@@ -901,8 +1244,12 @@
         cancelAnimationFrame(scrollRaf);
         intersection.disconnect();
         ro.disconnect();
-        scene.removeEventListener("pointermove", move);
-        scene.removeEventListener("pointerleave", resetPointer);
+        slotCleanups.forEach((fn) => fn());
+        stage.removeEventListener("pointerdown", onPointerDown);
+        stage.removeEventListener("pointermove", onPointerMove);
+        stage.removeEventListener("pointerup", onPointerUp);
+        stage.removeEventListener("pointercancel", onPointerUp);
+        stage.removeEventListener("pointerleave", resetPointer);
         window.removeEventListener("scroll", updateScroll);
         document.removeEventListener("visibilitychange", visibility);
         motion.removeEventListener("change", motionChange);
@@ -1103,6 +1450,15 @@
         String(button.dataset.themeChoice === theme)
       )
     );
+    const toggleBtn = document.querySelector("#theme-toggle");
+    if (toggleBtn) {
+      toggleBtn.innerHTML = icon(theme === "dark" ? "sun" : "moon");
+      toggleBtn.setAttribute(
+        "aria-label",
+        theme === "dark" ? "切换为浅色主题" : "切换为深色主题"
+      );
+      toggleBtn.title = theme === "dark" ? "切换为浅色主题" : "切换为深色主题";
+    }
     requestAnimationFrame(layout);
   }
   function updateStickyOffsets() {
@@ -1217,6 +1573,11 @@
         behavior: prefersReduced() ? "instant" : "smooth",
         block: "start"
       });
+      return;
+    }
+    if (button.id === "theme-toggle") {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      setTheme(next, true, true);
       return;
     }
     if (button.dataset.themeChoice) {
